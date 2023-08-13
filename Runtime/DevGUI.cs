@@ -6,158 +6,68 @@ namespace DevTools
 {
     public class DevGUI : MonoBehaviour
     {
-        private class GUITexture
+        private static class Styles
         {
-            public Texture2D Texture { get; private set; }
-            private readonly Color[] m_data = new Color[1];
+            public static GUIStyle Foldout;
+            public static GUIStyle SideButton;
+            public static GUIStyle SliderLabel;
+            public static GUIStyle Title;
+            public static GUIStyle Panel;
 
-            public float Color
+            internal static void Init(GUISkin skin)
             {
-                get => m_data[0].r;
-                set
-                {
-                    m_data[0].r = value;
-                    m_data[0].g = value;
-                    m_data[0].b = value;
-                    Refresh();
-                }
+                Foldout = skin.GetStyle("foldout");
+                SideButton = skin.GetStyle("sidebutton");
+                SliderLabel = skin.GetStyle("sliderlabel");
+                Title = skin.GetStyle("title");
+                Panel = skin.GetStyle("panel");
             }
-            public float Alpha
-            {
-                get => m_data[0].a;
-                set
-                {
-                    m_data[0].a = value;
-                    Refresh();
-                }
-            }
-
-            public GUITexture(float color, float alpha)
-            {
-                Texture = new Texture2D(1, 1, TextureFormat.ARGB32, false, false);
-                Color = color;
-                Alpha = alpha;
-            }
-
-            private void Refresh()
-            {
-                Texture.SetPixels(m_data);
-                Texture.Apply();
-            }
-
-            public void Sliders(string name)
-            {
-                Color = Slider(name, Color, 0, 1);
-                Alpha = Slider($"{name}.a", Alpha, 0, 1);
-            }
-
-            public void Release() => Destroy(Texture);
         }
 
         private enum DragState { None, Scroll, GUI }
 
-        private const float k_Resolution = 800;
-        private const float k_DragThreshold = 10;
+        private const float Resolution = 800;
+        private const float DragThreshold = 10;
 
-        private static readonly Dictionary<string, List<Action>> s_Categories = new();
-        private static readonly Dictionary<string, bool> s_Foldouts = new();
+        private static readonly Dictionary<string, List<Action>> _categories = new();
+        private static readonly Dictionary<string, bool> _foldouts = new();
+        private static DevGUI _instance;
 
-        private Rect m_screen;
-        private Rect m_window;
-        private bool m_hidden;
-        private Vector2 m_scroll;
-        private DragState m_dragState;
-        private Vector2 m_dragDelta;
+        private readonly GUIContent _tempContent = new();
 
-        private GUITexture backgroundTex;
-        private GUITexture buttonTex;
-        private GUITexture buttonPressedTex;
-        private GUITexture boxTex;
-        private GUITexture sliderBackTex;
+        private static float _guiScale;
+        private static Rect _window;
+        private static Rect _screen;
+        private bool _hidden = true;
+        private Vector2 _scroll;
+        private DragState _dragState;
+        private Vector2 _dragDelta;
 
-        public GUISkin skin;
+        public static float TitleWidth = 100;
+
+        public Texture2D TexArrowUp;
+        public Texture2D TexArrowDown;
+        public Texture2D TexArrowRight;
+        public Texture2D TexArrowLeft;
+
+        public GUISkin Skin;
+        public bool RightSide = true;
 
         private void Awake()
         {
-            backgroundTex = new GUITexture(0.03f, 0.8f);
-            buttonTex = new GUITexture(0.7f, 0.5f);
-            buttonPressedTex = new GUITexture(0.5f, 0.5f);
-            boxTex = new GUITexture(0.2f, 0.8f);
-            sliderBackTex = new GUITexture(0.2f, 0.8f);
+            if (_instance != null)
+            {
+                Debug.LogWarning("[DevGUI] Only one instance allowed", gameObject);
+                Destroy(this);
+                return;
+            }
+
+            Styles.Init(Skin);
+            _instance = this;
         }
 
-        private void OnDestroy()
-        {
-            backgroundTex.Release();
-            buttonTex.Release();
-            buttonPressedTex.Release();
-            boxTex.Release();
-            sliderBackTex.Release();
-        }
-
-        private void Start()
-        {
-            skin.GetStyle("foldout").normal.background = boxTex.Texture;
-            skin.GetStyle("sidebutton").normal.background = backgroundTex.Texture;
-
-            skin.button.normal.background = buttonTex.Texture;
-            skin.button.active.background = buttonPressedTex.Texture;
-            skin.box.normal.background = backgroundTex.Texture;
-
-            skin.horizontalSlider.normal.background = backgroundTex.Texture;
-            skin.horizontalSliderThumb.normal.background = buttonTex.Texture;
-
-            skin.verticalScrollbar.normal.background = backgroundTex.Texture;
-            skin.verticalScrollbarThumb.normal.background = buttonTex.Texture;
-
-            skin.horizontalSlider.normal.background = sliderBackTex.Texture;
-
-        }
-
-        private void OnEnable()
-        {
-            // AddGUI("Example", ExampleGUI);
-            AddGUI("Settings", SettingsGUI);
-            AddGUI("Device Info", InfoGUI);
-        }
-
-        private void OnDisable()
-        {
-            // RemoveGUI("Example", ExampleGUI);
-            RemoveGUI("Settings", SettingsGUI);
-            RemoveGUI("Device Info", InfoGUI);
-        }
-
-        private GUIContent buttonContent = new("Button");
-
-        private void ExampleGUI()
-        {
-            var r = GUILayoutUtility.GetRect(buttonContent, skin.button);
-            if (Event.current.type == EventType.Repaint)
-                skin.button.Draw(r, buttonContent, false, false, false, false);
-
-            r = GUILayoutUtility.GetRect(buttonContent, skin.button);
-            if (Event.current.type == EventType.Repaint)
-                skin.button.Draw(r, buttonContent, false, true, false, false);
-
-            text = TextField("Text Field", text);
-            f = FloatField("float Field", f);
-            f2 = FloatField("Speed", f2);
-        }
-
-        float f = 4.2f;
-        float f2 = 8.9f;
-        string text = "lol";
-        public static float TitleWidth = 100;
-        bool test;
-
-        private void SettingsGUI()
-        {
-            boxTex.Sliders(nameof(boxTex));
-            backgroundTex.Sliders(nameof(backgroundTex));
-            buttonTex.Sliders(nameof(buttonTex));
-            sliderBackTex.Sliders(nameof(sliderBackTex));
-        }
+        private void OnEnable() => AddGUI("Device Info", InfoGUI);
+        private void OnDisable() => RemoveGUI("Device Info", InfoGUI);
 
         private void InfoGUI()
         {
@@ -168,52 +78,51 @@ namespace DevTools
         }
 
         private static void SnapToRight(ref Rect rect, Rect target) => rect.x = target.xMax - rect.width;
-        private static void SnapToBottom(ref Rect rect, Rect target) => rect.y = target.yMax - rect.height;
 
         public static void AddGUI(string category, Action guiFunc)
         {
-            if (!s_Categories.TryGetValue(category, out var guiList))
+            if (!_categories.TryGetValue(category, out var guiList))
             {
                 guiList = new List<Action>();
-                s_Categories[category] = guiList;
-                s_Foldouts[category] = false;
+                _categories[category] = guiList;
+                _foldouts[category] = false;
             }
             guiList.Add(guiFunc);
         }
 
         public static void RemoveGUI(string category, Action guiFunc)
         {
-            if (!s_Categories.TryGetValue(category, out var guiList))
+            if (!_categories.TryGetValue(category, out var guiList))
                 return;
             guiList.Remove(guiFunc);
             if (guiList.Count == 0)
-                s_Categories.Remove(category);
+                _categories.Remove(category);
         }
 
         private void HandleMouseDrag(Vector2 delta)
         {
-            if (m_dragState == DragState.GUI)
+            if (_dragState == DragState.GUI)
                 return;
-            if (m_dragState == DragState.Scroll)
+            if (_dragState == DragState.Scroll)
             {
-                m_scroll.y += delta.y;
+                _scroll.y += delta.y;
                 return;
             }
             if (GUIUtility.hotControl == 0)
             {
-                m_dragState = DragState.Scroll;
+                _dragState = DragState.Scroll;
                 return;
             }
 
-            m_dragDelta += delta;
-            if (Mathf.Abs(m_dragDelta.x) > k_DragThreshold)
+            _dragDelta += delta;
+            if (Mathf.Abs(_dragDelta.x) > DragThreshold)
             {
-                m_dragState = DragState.GUI;
+                _dragState = DragState.GUI;
                 return;
             }
-            if (Mathf.Abs(m_dragDelta.y) > k_DragThreshold)
+            if (Mathf.Abs(_dragDelta.y) > DragThreshold)
             {
-                m_dragState = DragState.Scroll;
+                _dragState = DragState.Scroll;
                 GUIUtility.hotControl = 0;
             }
         }
@@ -221,7 +130,7 @@ namespace DevTools
         private void HandleInput()
         {
             var e = Event.current;
-            if (!m_window.Contains(e.mousePosition))
+            if (!_window.Contains(e.mousePosition))
                 return;
 
             switch (e.type)
@@ -230,117 +139,186 @@ namespace DevTools
                     HandleMouseDrag(e.delta);
                     break;
                 case EventType.MouseUp:
-                    m_dragDelta = Vector2.zero;
-                    m_dragState = DragState.None;
+                    _dragDelta = Vector2.zero;
+                    _dragState = DragState.None;
                     break;
             }
         }
 
-        public static float Slider(string title, float value, float min, float max)
-        {
-            GUILayout.BeginHorizontal("Box");
-            GUILayout.Label($"{value:0.000}", "sliderlabel");
-            value = GUILayout.HorizontalSlider(value, min, max);
-            var rect = GUILayoutUtility.GetLastRect();
-            GUILayout.EndHorizontal();
-            GUI.Label(rect, title, "title");
-            return value;
-        }
-
-        public static string TextField(string title, string text)
-        {
-            GUILayout.BeginHorizontal("Box");
-            GUILayout.Label(title, "title", GUILayout.Width(TitleWidth));
-            text = GUILayout.TextField(text);
-            GUILayout.EndHorizontal();
-            return text;
-        }
-
-        private static int fieldId;
-        private static string tmpStr;
-
-        public static float FloatField(string title, float value)
-        {
-            fieldId = GUIUtility.GetControlID(FocusType.Keyboard) + 1;
-            if (GUIUtility.keyboardControl != fieldId)
-                tmpStr = value.ToString();
-            tmpStr = TextField(title, tmpStr);
-            GUILayout.Label($"focus: {fieldId == GUIUtility.keyboardControl}");
-            if (float.TryParse(tmpStr, out var v))
-                return v;
-            return value;
-        }
-
         private void PanelGUI()
         {
-            foreach (var (title, guiList) in s_Categories)
+            foreach (var (title, guiList) in _categories)
             {
-                s_Foldouts[title] = Foldout(s_Foldouts[title], title);
-                if (!s_Foldouts[title])
+                _foldouts[title] = Foldout(_foldouts[title], title);
+                if (!_foldouts[title])
                     continue;
                 foreach (var gui in guiList)
                 {
-                    GUILayout.BeginVertical(skin.box);
+                    GUILayout.BeginVertical(Skin.box);
                     gui();
                     GUILayout.EndVertical();
                 }
             }
         }
 
-        private static bool Foldout(bool value, string title)
-        {
-            var icon = value ? "▼" : "►";
-            return GUILayout.Toggle(value, $"{icon} {title}", "foldout");
-        }
-
-        private bool RightSide = true;
-
-        private static string GetArrow(bool right) => right ? "▶︎" : "◀︎";
+        private Texture2D GetArrow(bool right) => right ? TexArrowRight : TexArrowLeft;
 
         private void OnGUI()
         {
-            GUI.skin = skin;
-            var scale = Screen.width / k_Resolution;
+            GUI.skin = Skin;
+            _guiScale = Screen.width / Resolution;
             var guiMatrix = GUI.matrix;
-            GUI.matrix = Matrix4x4.Scale(Vector3.one * scale);
-            m_screen.size = new Vector2(Screen.width / scale, Screen.height / scale);
+            GUI.matrix = Matrix4x4.Scale(Vector3.one * _guiScale);
+            _screen.size = new Vector2(Screen.width / _guiScale, Screen.height / _guiScale);
 
-            m_window = new Rect(0, 0, 300, m_screen.height);
+            _window = new Rect(0, 0, 300, _screen.height);
+            // _popup?.OnGUI();
+
             if (RightSide)
-                SnapToRight(ref m_window, m_screen);
-            if (m_hidden)
-                m_window.x += RightSide ? m_window.width : -m_window.width;
+                SnapToRight(ref _window, _screen);
+            if (_hidden)
+                _window.x += RightSide ? _window.width : -_window.width;
 
             const float SideButtonWidth = 30;
-            var btnRect = new Rect(m_window.x - SideButtonWidth, 0, SideButtonWidth, 50);
+            var btnRect = new Rect(_window.x - SideButtonWidth, 0, SideButtonWidth, 50);
             if (!RightSide)
-                btnRect.x += m_window.width + SideButtonWidth;
+                btnRect.x += _window.width + SideButtonWidth;
 
-            m_hidden = GUI.Toggle(btnRect, m_hidden, GetArrow(m_hidden ^ RightSide), "sidebutton");
-            if (m_hidden)
+            _hidden = GUI.Toggle(btnRect, _hidden, GetArrow(_hidden ^ RightSide), Styles.SideButton);
+            if (_hidden)
                 return;
 
             HandleInput();
 
-            GUILayout.BeginArea(m_window, skin.box);
+            GUILayout.BeginArea(_window, Styles.Panel);
             GUILayout.BeginHorizontal();
             GUILayout.Label("Developer Tools", GUILayout.ExpandWidth(false));
 
-            RightSide = GUILayout.Toggle(RightSide, GetArrow(!RightSide), skin.button, GUILayout.Width(25));
+            RightSide = GUILayout.Toggle(RightSide, GetArrow(!RightSide), Skin.button, GUILayout.Width(25));
 
-            if (m_scroll.y > 10)
+            if (_scroll.y > 10)
             {
-                if (GUILayout.Button("▲", GUILayout.Width(25)))
-                    m_scroll.y = 0;
+                if (GUILayout.Button(TexArrowUp, GUILayout.Width(25)))
+                    _scroll.y = 0;
             }
             GUILayout.EndHorizontal();
 
-            m_scroll = GUILayout.BeginScrollView(m_scroll);
+            _scroll = GUILayout.BeginScrollView(_scroll);
             PanelGUI();
 
             GUILayout.EndScrollView();
             GUILayout.EndArea();
+
             GUI.matrix = guiMatrix;
         }
+
+        private bool Foldout(bool value, string title)
+        {
+            _tempContent.image = value ? TexArrowDown : TexArrowRight;
+            _tempContent.text = title;
+            return GUILayout.Toggle(value, _tempContent, Styles.Foldout);
+        }
+
+        public static float Slider(string title, float value, float min, float max)
+        {
+            GUILayout.BeginHorizontal("Box");
+            GUILayout.Label($"{value:0.000}", Styles.SliderLabel);
+            value = GUILayout.HorizontalSlider(value, min, max);
+            var rect = GUILayoutUtility.GetLastRect();
+            GUILayout.EndHorizontal();
+            GUI.Label(rect, title, Styles.Title);
+            return value;
+        }
+
+        public static string TextField(string title, string text)
+        {
+            GUILayout.BeginHorizontal("Box");
+            GUILayout.Label(title, Styles.Title, GUILayout.Width(TitleWidth));
+            text = GUILayout.TextField(text);
+            GUILayout.EndHorizontal();
+            return text;
+        }
+
+        // private static int fieldId;
+        // private static string tmpStr;
+
+        // public static float FloatField(string title, float value)
+        // {
+        //     fieldId = GUIUtility.GetControlID(FocusType.Keyboard) + 1;
+        //     if (GUIUtility.keyboardControl != fieldId)
+        //         tmpStr = value.ToString();
+        //     tmpStr = TextField(title, tmpStr);
+        //     GUILayout.Label($"focus: {fieldId == GUIUtility.keyboardControl}");
+        //     if (float.TryParse(tmpStr, out var v))
+        //         return v;
+        //     return value;
+        // }
+
+        // private static Popup _popup;
+
+        // public static int EnumField<T>(T value) where T : Enum
+        // {
+        //     if (GUILayout.Button(value.ToString()))
+        //     {
+        //         var pos = Event.current.mousePosition;
+        //         Debug.Log(pos);
+        //         _popup = new EnumPopup(pos, Enum.GetNames(typeof(T)));
+        //     }
+        //     return 0;
+        // }
+
+        // private abstract class Popup
+        // {
+        //     public Rect rect;
+
+        //     public void OnGUI()
+        //     {
+        //         var id = GUIUtility.GetControlID(FocusType.Passive);
+        //         GUI.Window(id, rect, OnWindow, "NULL", GUI.skin.box);
+        //     }
+
+        //     public void OnWindow(int id)
+        //     {
+        //         var e = Event.current;
+        //         switch (e.type)
+        //         {
+        //             case EventType.MouseDown:
+        //                 if (!rect.Contains(e.mousePosition))
+        //                     Close();
+        //                 break;
+        //         }
+        //         PopupGUI();
+        //     }
+
+        //     public abstract void PopupGUI();
+
+        //     public void Close()
+        //     {
+        //         _popup = null;
+        //     }
+        // }
+
+        // private class EnumPopup : Popup
+        // {
+        //     private string[] _values;
+
+        //     public EnumPopup(Vector2 pos, string[] values)
+        //     {
+        //         _values = values;
+        //         rect = new Rect(pos, new Vector2(80, 150));
+        //     }
+
+        //     public override void PopupGUI()
+        //     {
+        //         GUILayout.BeginArea(rect);
+        //         GUILayout.BeginVertical("Box");
+
+        //         for (int i = 0; i < _values.Length; i++)
+        //             GUILayout.Button(_values[i]);
+
+        //         GUILayout.EndVertical();
+        //         GUILayout.EndArea();
+        //     }
+        // }
     }
 }
