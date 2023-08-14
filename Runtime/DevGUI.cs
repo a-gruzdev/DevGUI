@@ -163,14 +163,8 @@ namespace DevTools
 
         private Texture2D GetArrow(bool right) => right ? TexArrowRight : TexArrowLeft;
 
-        private void OnGUI()
+        private void MainGUI()
         {
-            GUI.skin = Skin;
-            _guiScale = Screen.width / Resolution;
-            var guiMatrix = GUI.matrix;
-            GUI.matrix = Matrix4x4.Scale(Vector3.one * _guiScale);
-            _screen.size = new Vector2(Screen.width / _guiScale, Screen.height / _guiScale);
-
             _window = new Rect(0, 0, 300, _screen.height);
             // _popup?.OnGUI();
 
@@ -180,7 +174,7 @@ namespace DevTools
                 _window.x += RightSide ? _window.width : -_window.width;
 
             const float SideButtonWidth = 30;
-            var btnRect = new Rect(_window.x - SideButtonWidth, 0, SideButtonWidth, 50);
+            var btnRect = new Rect(_window.x - SideButtonWidth, 30, SideButtonWidth, 50);
             if (!RightSide)
                 btnRect.x += _window.width + SideButtonWidth;
 
@@ -208,7 +202,16 @@ namespace DevTools
 
             GUILayout.EndScrollView();
             GUILayout.EndArea();
+        }
 
+        private void OnGUI()
+        {
+            GUI.skin = Skin;
+            _guiScale = Screen.width / Resolution;
+            var guiMatrix = GUI.matrix;
+            GUI.matrix = Matrix4x4.Scale(Vector3.one * _guiScale);
+            _screen.size = new Vector2(Screen.width / _guiScale, Screen.height / _guiScale);
+            MainGUI();
             GUI.matrix = guiMatrix;
         }
 
