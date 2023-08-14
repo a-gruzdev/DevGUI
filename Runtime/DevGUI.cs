@@ -99,7 +99,7 @@ namespace DevTools
                 _categories.Remove(category);
         }
 
-        private void HandleMouseDrag(Vector2 delta)
+        private void HandleMouseDrag(Vector2 delta, int controlId)
         {
             if (_dragState == DragState.GUI)
                 return;
@@ -108,7 +108,7 @@ namespace DevTools
                 _scroll.y += delta.y;
                 return;
             }
-            if (GUIUtility.hotControl == 0)
+            if (GUIUtility.hotControl == controlId)
             {
                 _dragState = DragState.Scroll;
                 return;
@@ -123,7 +123,7 @@ namespace DevTools
             if (Mathf.Abs(_dragDelta.y) > DragThreshold)
             {
                 _dragState = DragState.Scroll;
-                GUIUtility.hotControl = 0;
+                GUIUtility.hotControl = controlId;
             }
         }
 
@@ -133,12 +133,20 @@ namespace DevTools
             if (!_window.Contains(e.mousePosition))
                 return;
 
+            var id = GUIUtility.GetControlID(FocusType.Passive);
+
             switch (e.type)
             {
+                case EventType.MouseDown:
+                    if (GUIUtility.hotControl == 0)
+                        GUIUtility.hotControl = id;
+                    break;
                 case EventType.MouseDrag:
-                    HandleMouseDrag(e.delta);
+                    HandleMouseDrag(e.delta, id);
                     break;
                 case EventType.MouseUp:
+                    if (GUIUtility.hotControl == id)
+                        GUIUtility.hotControl = 0;
                     _dragDelta = Vector2.zero;
                     _dragState = DragState.None;
                     break;
