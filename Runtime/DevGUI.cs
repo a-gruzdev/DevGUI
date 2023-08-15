@@ -158,11 +158,13 @@ namespace DevTools
             foreach (var (title, guiList) in _categories)
             {
                 _foldouts[title] = Foldout(_foldouts[title], title);
+                GUI.changed = false;
                 if (!_foldouts[title])
                     continue;
                 foreach (var gui in guiList)
                 {
                     GUILayout.BeginVertical(Skin.box);
+                    GUI.changed = false;
                     gui();
                     GUILayout.EndVertical();
                 }
