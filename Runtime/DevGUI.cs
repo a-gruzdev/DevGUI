@@ -13,6 +13,9 @@ namespace DevTools
             public static GUIStyle SliderLabel;
             public static GUIStyle Title;
             public static GUIStyle Panel;
+            public static GUIStyle DropDown;
+            public static GUIStyle DropDownItem;
+            public static GUIStyle CheckMark;
 
             internal static void Init(GUISkin skin)
             {
@@ -21,27 +24,26 @@ namespace DevTools
                 SliderLabel = skin.GetStyle("sliderlabel");
                 Title = skin.GetStyle("title");
                 Panel = skin.GetStyle("panel");
+                DropDown = skin.GetStyle("dropdown");
+                DropDownItem = skin.GetStyle("dropdownitem");
+                CheckMark = skin.GetStyle("checkmark");
             }
         }
 
-        private enum DragState { None, Scroll, GUI }
-
         private const float Resolution = 800;
-        private const float DragThreshold = 10;
 
         private static readonly Dictionary<string, List<Action>> _categories = new();
         private static readonly Dictionary<string, bool> _foldouts = new();
         private static DevGUI _instance;
 
         private readonly GUIContent _tempContent = new();
+        private static readonly GUIContent _dropdownContent = new();
 
         private static float _guiScale;
         private static Rect _window;
         private static Rect _screen;
         private bool _hidden = true;
         private Vector2 _scroll;
-        private DragState _dragState;
-        private Vector2 _dragDelta;
 
         public static float TitleWidth = 100;
 
@@ -63,6 +65,7 @@ namespace DevTools
             }
 
             Styles.Init(Skin);
+            _dropdownContent.image = TexArrowDown;
             _instance = this;
         }
 
@@ -99,60 +102,6 @@ namespace DevTools
                 _categories.Remove(category);
         }
 
-        private void HandleMouseDrag(Vector2 delta, int controlId)
-        {
-            if (_dragState == DragState.GUI)
-                return;
-            if (_dragState == DragState.Scroll)
-            {
-                _scroll.y += delta.y;
-                return;
-            }
-            if (GUIUtility.hotControl == controlId)
-            {
-                _dragState = DragState.Scroll;
-                return;
-            }
-
-            _dragDelta += delta;
-            if (Mathf.Abs(_dragDelta.x) > DragThreshold)
-            {
-                _dragState = DragState.GUI;
-                return;
-            }
-            if (Mathf.Abs(_dragDelta.y) > DragThreshold)
-            {
-                _dragState = DragState.Scroll;
-                GUIUtility.hotControl = controlId;
-            }
-        }
-
-        private void HandleInput()
-        {
-            var e = Event.current;
-            if (!_window.Contains(e.mousePosition))
-                return;
-
-            var id = GUIUtility.GetControlID(FocusType.Passive);
-
-            switch (e.type)
-            {
-                case EventType.MouseDown:
-                    if (GUIUtility.hotControl == 0)
-                        GUIUtility.hotControl = id;
-                    break;
-                case EventType.MouseDrag:
-                    HandleMouseDrag(e.delta, id);
-                    break;
-                case EventType.MouseUp:
-                    if (GUIUtility.hotControl == id)
-                        GUIUtility.hotControl = 0;
-                    _dragDelta = Vector2.zero;
-                    _dragState = DragState.None;
-                    break;
-            }
-        }
-
         private void PanelGUI()
         {
             foreach (var (title, guiList) in _categories)
@@ -176,7 +125,7 @@ namespace DevTools
         private void MainGUI()
         {
             _window = new Rect(0, 0, 300, _screen.height);
-            // _popup?.OnGUI();
+            _popup?.OnGUI();
 
             if (RightSide)
                 SnapToRight(ref _window, _screen);
@@ -192,7 +141,8 @@ namespace DevTools
             if (_hidden)
                 return;
 
-            HandleInput();
+            if (_window.Contains(Event.current.mousePosition))
+                DevGUIUtility.HandleDragScroll(ref _scroll);
 
             GUILayout.BeginArea(_window, Styles.Panel);
             GUILayout.BeginHorizontal();
@@ -232,6 +182,8 @@ namespace DevTools
             return GUILayout.Toggle(value, _tempContent, Styles.Foldout);
         }
 
+        private static void GUITitle(string title) => GUILayout.Label(title, Styles.Title, GUILayout.Width(TitleWidth));
+
         public static float Slider(string title, float value, float min, float max)
         {
             GUILayout.BeginHorizontal("Box");
@@ -252,86 +204,142 @@ namespace DevTools
             return text;
         }
 
-        // private static int fieldId;
-        // private static string tmpStr;
+        private static int fieldId;
+        private static string tmpStr;
 
-        // public static float FloatField(string title, float value)
-        // {
-        //     fieldId = GUIUtility.GetControlID(FocusType.Keyboard) + 1;
-        //     if (GUIUtility.keyboardControl != fieldId)
-        //         tmpStr = value.ToString();
-        //     tmpStr = TextField(title, tmpStr);
-        //     GUILayout.Label($"focus: {fieldId == GUIUtility.keyboardControl}");
-        //     if (float.TryParse(tmpStr, out var v))
-        //         return v;
-        //     return value;
-        // }
+        public static float FloatField(string title, float value)
+        {
+            fieldId = GUIUtility.GetControlID(FocusType.Keyboard) + 1;
+            if (GUIUtility.keyboardControl != fieldId)
+                tmpStr = value.ToString();
+            tmpStr = TextField(title, tmpStr);
+            GUILayout.Label($"focus: {fieldId == GUIUtility.keyboardControl}");
+            if (float.TryParse(tmpStr, out var v))
+                return v;
+            return value;
+        }
 
-        // private static Popup _popup;
+        private static Popup _popup;
 
-        // public static int EnumField<T>(T value) where T : Enum
-        // {
-        //     if (GUILayout.Button(value.ToString()))
-        //     {
-        //         var pos = Event.current.mousePosition;
-        //         Debug.Log(pos);
-        //         _popup = new EnumPopup(pos, Enum.GetNames(typeof(T)));
-        //     }
-        //     return 0;
-        // }
+        public static T EnumField<T>(string title, T value) where T : Enum
+        {
+            var id = GUIUtility.GetControlID(FocusType.Passive);
+            GUILayout.BeginHorizontal("Box");
+            GUITitle(title);
+            var rect = GUILayoutUtility.GetRect(GUIContent.none, Styles.DropDown);
+            _dropdownContent.text = value.ToString();
+            if (GUI.Button(rect, _dropdownContent, Styles.DropDown))
+            {
+                var popupRect = rect;
+                popupRect.y += popupRect.height;
+                popupRect.position /= _guiScale;
+                popupRect = GUIUtility.GUIToScreenRect(popupRect);
+                _popup = new EnumPopup(id, popupRect, value.GetHashCode(), Enum.GetNames(typeof(T)));
+            }
+            GUILayout.EndHorizontal();
 
-        // private abstract class Popup
-        // {
-        //     public Rect rect;
+            if (EnumPopup.TryGetValue(id, out var selected))
+                return (T)Enum.ToObject(typeof(T), selected);
+            return value;
+        }
 
-        //     public void OnGUI()
-        //     {
-        //         var id = GUIUtility.GetControlID(FocusType.Passive);
-        //         GUI.Window(id, rect, OnWindow, "NULL", GUI.skin.box);
-        //     }
+        private abstract class Popup
+        {
+            public readonly int Id;
+            protected Rect _rect;
 
-        //     public void OnWindow(int id)
-        //     {
-        //         var e = Event.current;
-        //         switch (e.type)
-        //         {
-        //             case EventType.MouseDown:
-        //                 if (!rect.Contains(e.mousePosition))
-        //                     Close();
-        //                 break;
-        //         }
-        //         PopupGUI();
-        //     }
+            public Popup(int id, Rect rect)
+            {
+                Id = id;
+                _rect = rect;
+            }
 
-        //     public abstract void PopupGUI();
+            public abstract void PopupGUI();
 
-        //     public void Close()
-        //     {
-        //         _popup = null;
-        //     }
-        // }
+            public void OnGUI()
+            {
+                var e = Event.current;
+                switch (e.type)
+                {
+                    case EventType.MouseDown:
+                        if (!_rect.Contains(e.mousePosition))
+                            Close();
+                        else
+                            e.Use();
+                        break;
+                }
 
-        // private class EnumPopup : Popup
-        // {
-        //     private string[] _values;
+                GUI.Window(Id, _rect, OnWindow, GUIContent.none, Styles.Panel);
+            }
 
-        //     public EnumPopup(Vector2 pos, string[] values)
-        //     {
-        //         _values = values;
-        //         rect = new Rect(pos, new Vector2(80, 150));
-        //     }
+            public void OnWindow(int id) => PopupGUI();
+            public void Close() => _popup = null;
+        }
 
-        //     public override void PopupGUI()
-        //     {
-        //         GUILayout.BeginArea(rect);
-        //         GUILayout.BeginVertical("Box");
+        private class EnumPopup : Popup
+        {
+            private const int MaxItems = 4;
+            private readonly string[] _values;
+            private Vector2 _scroll;
 
-        //         for (int i = 0; i < _values.Length; i++)
-        //             GUILayout.Button(_values[i]);
+            private static bool _dirty;
+            private static int _value;
+            private static int _lastId;
 
-        //         GUILayout.EndVertical();
-        //         GUILayout.EndArea();
-        //     }
-        // }
+            public EnumPopup(int id, Rect rect, int value, string[] values) : base(id, rect)
+            {
+                _values = values;
+                _value = value;
+                var height = Styles.DropDownItem.CalcHeight(GUIContent.none, 1);
+                var margin = Styles.DropDownItem.margin;
+                var spacing = Mathf.Max(margin.top, margin.bottom);
+                height += spacing;
+                var itemCount = Mathf.Min(MaxItems, _values.Length);
+                _rect.height = height * itemCount;
+                _rect.height += Styles.Panel.padding.vertical + spacing + 2;
+
+                if (_rect.yMax > _screen.yMax)
+                    _rect.y -= _rect.height + rect.height;
+            }
+
+            private bool DoItem(string text, bool isChecked)
+            {
+                var rect = GUILayoutUtility.GetRect(GUIContent.none, Styles.DropDownItem);
+                var pressed = GUI.Button(rect,text, Styles.DropDownItem);
+                if (Event.current.type == EventType.Repaint)
+                {
+                    Styles.CheckMark.Draw(DevGUIUtility.GetSquareRect(rect, 4), false, false, isChecked, false);
+                }
+                return pressed;
+            }
+
+            public override void PopupGUI()
+            {
+                DevGUIUtility.HandleDragScroll(ref _scroll);
+                _scroll = GUILayout.BeginScrollView(_scroll);
+                for (int i = 0; i < _values.Length; i++)
+                {
+                    if (DoItem(_values[i], i == _value))
+                    {
+                        _value = i;
+                        _lastId = Id;
+                        _dirty = true;
+                        Close();
+                    }
+                }
+                GUILayout.EndScrollView();
+            }
+
+            public static bool TryGetValue(int id, out int value)
+            {
+                value = 0;
+                if (_lastId != id || !_dirty)
+                    return false;
+
+                _dirty = false;
+                value = _value;
+                return true;
+            }
+        }
     }
 }
