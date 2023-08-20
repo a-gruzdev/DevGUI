@@ -60,9 +60,16 @@ floatValue = DevGUI.Slider("Float Slider", floatValue, 0f, 1f);
 strValue = DevGUI.TextField("Text Field", strValue);
 ```
 
+### EnumField
+
+supports enum flags
+
+```csharp
+state = DevGUI.EnumField("State", state);
+```
+
 ## Work In Progress
 
 - Float field
 - Int field
-- Enum field
 - Color field / Picker
