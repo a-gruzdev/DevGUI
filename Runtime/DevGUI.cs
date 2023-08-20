@@ -4,37 +4,40 @@ using UnityEngine;
 
 namespace DevTools
 {
+    public static class Styles
+    {
+        public static GUIStyle Foldout;
+        public static GUIStyle SideButton;
+        public static GUIStyle SliderLabel;
+        public static GUIStyle Title;
+        public static GUIStyle Panel;
+        public static GUIStyle DropDown;
+        public static GUIStyle DropDownItem;
+        public static GUIStyle CheckMark;
+
+        internal static void Init(GUISkin skin)
+        {
+            Foldout = skin.GetStyle("foldout");
+            SideButton = skin.GetStyle("sidebutton");
+            SliderLabel = skin.GetStyle("sliderlabel");
+            Title = skin.GetStyle("title");
+            Panel = skin.GetStyle("panel");
+            DropDown = skin.GetStyle("dropdown");
+            DropDownItem = skin.GetStyle("dropdownitem");
+            CheckMark = skin.GetStyle("checkmark");
+        }
+    }
+
     public class DevGUI : MonoBehaviour
     {
-        private static class Styles
-        {
-            public static GUIStyle Foldout;
-            public static GUIStyle SideButton;
-            public static GUIStyle SliderLabel;
-            public static GUIStyle Title;
-            public static GUIStyle Panel;
-            public static GUIStyle DropDown;
-            public static GUIStyle DropDownItem;
-            public static GUIStyle CheckMark;
-
-            internal static void Init(GUISkin skin)
-            {
-                Foldout = skin.GetStyle("foldout");
-                SideButton = skin.GetStyle("sidebutton");
-                SliderLabel = skin.GetStyle("sliderlabel");
-                Title = skin.GetStyle("title");
-                Panel = skin.GetStyle("panel");
-                DropDown = skin.GetStyle("dropdown");
-                DropDownItem = skin.GetStyle("dropdownitem");
-                CheckMark = skin.GetStyle("checkmark");
-            }
-        }
-
         private const float Resolution = 800;
+        private const float PanelWidth = 300;
+        private const float TitleWidth = 100;
 
         private static readonly Dictionary<string, List<Action>> _categories = new();
         private static readonly Dictionary<string, bool> _foldouts = new();
         private static DevGUI _instance;
+        private static Popup _popup;
 
         private readonly GUIContent _tempContent = new();
         private static readonly GUIContent _dropdownContent = new();
@@ -45,7 +48,7 @@ namespace DevTools
         private bool _hidden = true;
         private Vector2 _scroll;
 
-        public static float TitleWidth = 100;
+        public static Rect ScreenRect => _screen;
 
         public Texture2D TexArrowUp;
         public Texture2D TexArrowDown;
@@ -124,7 +127,7 @@ namespace DevTools
 
         private void MainGUI()
         {
-            _window = new Rect(0, 0, 300, _screen.height);
+            _window = new Rect(0, 0, PanelWidth, _screen.height);
             _popup?.OnGUI();
 
             if (RightSide)
@@ -198,28 +201,11 @@ namespace DevTools
         public static string TextField(string title, string text)
         {
             GUILayout.BeginHorizontal("Box");
-            GUILayout.Label(title, Styles.Title, GUILayout.Width(TitleWidth));
+            GUITitle(title);
             text = GUILayout.TextField(text);
             GUILayout.EndHorizontal();
             return text;
         }
-
-        private static int fieldId;
-        private static string tmpStr;
-
-        public static float FloatField(string title, float value)
-        {
-            fieldId = GUIUtility.GetControlID(FocusType.Keyboard) + 1;
-            if (GUIUtility.keyboardControl != fieldId)
-                tmpStr = value.ToString();
-            tmpStr = TextField(title, tmpStr);
-            GUILayout.Label($"focus: {fieldId == GUIUtility.keyboardControl}");
-            if (float.TryParse(tmpStr, out var v))
-                return v;
-            return value;
-        }
-
-        private static Popup _popup;
 
         public static T EnumField<T>(string title, T value) where T : Enum
         {
@@ -227,23 +213,26 @@ namespace DevTools
             GUILayout.BeginHorizontal("Box");
             GUITitle(title);
             var rect = GUILayoutUtility.GetRect(GUIContent.none, Styles.DropDown);
-            _dropdownContent.text = value.ToString();
+            _dropdownContent.text = EnumUtility.GetName(value);
             if (GUI.Button(rect, _dropdownContent, Styles.DropDown))
             {
                 var popupRect = rect;
                 popupRect.y += popupRect.height;
                 popupRect.position /= _guiScale;
                 popupRect = GUIUtility.GUIToScreenRect(popupRect);
-                _popup = new EnumPopup(id, popupRect, value.GetHashCode(), Enum.GetNames(typeof(T)));
+                EnumPopup.Show(id, popupRect, value);
             }
             GUILayout.EndHorizontal();
 
             if (EnumPopup.TryGetValue(id, out var selected))
+            {
+                GUI.changed = true;
                 return (T)Enum.ToObject(typeof(T), selected);
+            }
             return value;
         }
 
-        private abstract class Popup
+        public abstract class Popup
         {
             public readonly int Id;
             protected Rect _rect;
@@ -274,72 +263,7 @@ namespace DevTools
 
             public void OnWindow(int id) => PopupGUI();
             public void Close() => _popup = null;
-        }
-
-        private class EnumPopup : Popup
-        {
-            private const int MaxItems = 4;
-            private readonly string[] _values;
-            private Vector2 _scroll;
-
-            private static bool _dirty;
-            private static int _value;
-            private static int _lastId;
-
-            public EnumPopup(int id, Rect rect, int value, string[] values) : base(id, rect)
-            {
-                _values = values;
-                _value = value;
-                var height = Styles.DropDownItem.CalcHeight(GUIContent.none, 1);
-                var margin = Styles.DropDownItem.margin;
-                var spacing = Mathf.Max(margin.top, margin.bottom);
-                height += spacing;
-                var itemCount = Mathf.Min(MaxItems, _values.Length);
-                _rect.height = height * itemCount;
-                _rect.height += Styles.Panel.padding.vertical + spacing + 2;
-
-                if (_rect.yMax > _screen.yMax)
-                    _rect.y -= _rect.height + rect.height;
-            }
-
-            private bool DoItem(string text, bool isChecked)
-            {
-                var rect = GUILayoutUtility.GetRect(GUIContent.none, Styles.DropDownItem);
-                var pressed = GUI.Button(rect,text, Styles.DropDownItem);
-                if (Event.current.type == EventType.Repaint)
-                {
-                    Styles.CheckMark.Draw(DevGUIUtility.GetSquareRect(rect, 4), false, false, isChecked, false);
-                }
-                return pressed;
-            }
-
-            public override void PopupGUI()
-            {
-                DevGUIUtility.HandleDragScroll(ref _scroll);
-                _scroll = GUILayout.BeginScrollView(_scroll);
-                for (int i = 0; i < _values.Length; i++)
-                {
-                    if (DoItem(_values[i], i == _value))
-                    {
-                        _value = i;
-                        _lastId = Id;
-                        _dirty = true;
-                        Close();
-                    }
-                }
-                GUILayout.EndScrollView();
-            }
-
-            public static bool TryGetValue(int id, out int value)
-            {
-                value = 0;
-                if (_lastId != id || !_dirty)
-                    return false;
-
-                _dirty = false;
-                value = _value;
-                return true;
-            }
+            public void Show() => _popup = this;
         }
     }
 }
