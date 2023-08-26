@@ -66,7 +66,7 @@ namespace DevTools
             }
         }
 
-        public void FlagsGUI()
+        private void FlagsGUI()
         {
             for (int i = 0; i < _enumData.Names.Length; i++)
             {
