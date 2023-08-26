@@ -48,28 +48,21 @@ if (value != target.activeSelf)
 }
 ```
 
-### Slider
+### Available DevGUI Widgets
 
 ```csharp
-floatValue = DevGUI.Slider("Float Slider", floatValue, 0f, 1f);
-```
-
-### TextField
-
-```csharp
-strValue = DevGUI.TextField("Text Field", strValue);
-```
-
-### EnumField
-
-supports enum flags
-
-```csharp
-state = DevGUI.EnumField("State", state);
+float Slider(string title, float value, float min, float max);
+string TextField(string title, string text);
+int IntField(string title, int value);
+float FloatField(string title, float value);
+Vector2 Vector2Field(string title, Vector2 value);
+Vector3 Vector3Field(string title, Vector3 value);
+Vector4 Vector4Field(string title, Vector4 value);
+Vector2Int Vector2IntField(string title, Vector2Int value);
+Vector3Int Vector3IntField(string title, Vector3Int value);
+T EnumField<T>(string title, T enumValue); //supports flags
 ```
 
 ## Work In Progress
 
-- Float field
-- Int field
 - Color field / Picker
