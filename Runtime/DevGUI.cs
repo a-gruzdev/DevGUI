@@ -189,7 +189,7 @@ namespace DevTools
 
         public static float Slider(string title, float value, float min, float max)
         {
-            GUILayout.BeginHorizontal("Box");
+            GUILayout.BeginHorizontal(GUI.skin.box);
             GUILayout.Label($"{value:0.000}", Styles.SliderLabel);
             value = GUILayout.HorizontalSlider(value, min, max);
             var rect = GUILayoutUtility.GetLastRect();
@@ -200,29 +200,54 @@ namespace DevTools
 
         public static string TextField(string title, string text)
         {
-            GUILayout.BeginHorizontal("Box");
-            GUITitle(title);
-            text = GUILayout.TextField(text);
-            GUILayout.EndHorizontal();
-            return text;
+            using (new TitleScope(title))
+                return GUILayout.TextField(text);
+        }
+
+        public static int IntField(string title, int value)
+        {
+            using (new TitleScope(title))
+                return IntField(value);
+        }
+
+        public static int IntField(int value)
+        {
+            var raw = DevGUIUtility.NumericField(value, out var edited);
+            if (edited && int.TryParse(raw, out var parsed))
+                return parsed;
+            return value;
+        }
+
+        public static float FloatField(string title, float value)
+        {
+            using (new TitleScope(title))
+                return FloatField(value);
+        }
+
+        public static float FloatField(float value)
+        {
+            var raw = DevGUIUtility.NumericField(value, out var edited);
+            if (edited && float.TryParse(raw, out var parsed))
+                return parsed;
+            return value;
         }
 
         public static T EnumField<T>(string title, T value) where T : Enum
         {
             var id = GUIUtility.GetControlID(FocusType.Passive);
-            GUILayout.BeginHorizontal("Box");
-            GUITitle(title);
-            var rect = GUILayoutUtility.GetRect(GUIContent.none, Styles.DropDown);
-            _dropdownContent.text = EnumUtility.GetName(value);
-            if (GUI.Button(rect, _dropdownContent, Styles.DropDown))
+            using (new TitleScope(title))
             {
-                var popupRect = rect;
-                popupRect.y += popupRect.height;
-                popupRect.position /= _guiScale;
-                popupRect = GUIUtility.GUIToScreenRect(popupRect);
-                EnumPopup.Show(id, popupRect, value);
+                var rect = GUILayoutUtility.GetRect(GUIContent.none, Styles.DropDown);
+                _dropdownContent.text = EnumUtility.GetName(value);
+                if (GUI.Button(rect, _dropdownContent, Styles.DropDown))
+                {
+                    var popupRect = rect;
+                    popupRect.y += popupRect.height;
+                    popupRect.position /= _guiScale;
+                    popupRect = GUIUtility.GUIToScreenRect(popupRect);
+                    EnumPopup.Show(id, popupRect, value);
+                }
             }
-            GUILayout.EndHorizontal();
 
             if (EnumPopup.TryGetValue(id, out var selected))
             {
@@ -230,6 +255,17 @@ namespace DevTools
                 return (T)Enum.ToObject(typeof(T), selected);
             }
             return value;
+        }
+
+        internal readonly ref struct TitleScope
+        {
+            public TitleScope(string text)
+            {
+                GUILayout.BeginHorizontal(GUI.skin.box);
+                GUITitle(text);
+            }
+
+            public void Dispose() => GUILayout.EndHorizontal();
         }
 
         public abstract class Popup

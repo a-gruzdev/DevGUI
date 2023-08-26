@@ -12,6 +12,9 @@ namespace DevTools
         private static Vector2 _dragDelta;
         private static int _dragControl;
 
+        private static string _numericStr;
+        private static TextEditor _activeTextEditor;
+
         private static void HandleMouseDrag(int controlId, Vector2 delta, ref Vector2 scroll)
         {
             if (_dragState == DragState.GUI)
@@ -78,6 +81,75 @@ namespace DevTools
             square.x += padding;
             square.y += padding;
             return square;
+        }
+
+        private static char FilterNumericCharacter(char c)
+        {
+            if (c >= '0' && c <= '9' || c == '.' || c == '-')
+                return c;
+            return '\0';
+        }
+
+        private static void HandleTextFieldTouch(int id, Rect rect, string text)
+        {
+            var e = Event.current;
+            if (!rect.Contains(e.mousePosition))
+                return;
+            if (e.type != EventType.MouseDown)
+                return;
+
+            GUIUtility.keyboardControl = id;
+            _numericStr = text;
+            if (!TouchScreenKeyboard.isSupported || TouchScreenKeyboard.isInPlaceEditingAllowed)
+                return;
+
+            _activeTextEditor = (TextEditor)GUIUtility.GetStateObject(typeof(TextEditor), id);
+            _activeTextEditor.keyboardOnScreen ??= TouchScreenKeyboard.Open(text, TouchScreenKeyboardType.NumbersAndPunctuation);
+            e.Use();
+        }
+
+        private static bool CheckTouchKeyboardDone()
+        {
+            var keyboard = _activeTextEditor?.keyboardOnScreen;
+            if (keyboard == null)
+                return false;
+            if (keyboard.status == TouchScreenKeyboard.Status.Visible)
+                return false;
+
+            GUIUtility.keyboardControl = 0;
+            _activeTextEditor = null;
+            return true;
+        }
+
+        internal static string NumericField<T>(Rect rect, T value, out bool edited)
+        {
+            var id = GUIUtility.GetControlID(FocusType.Passive) + 1;
+            edited = false;
+            var strVal = value.ToString();
+            HandleTextFieldTouch(id, rect, strVal);
+
+            if (GUIUtility.keyboardControl == id)
+            {
+                var e = Event.current;
+                e.character = FilterNumericCharacter(e.character);
+                var input = GUI.TextField(rect, _numericStr);
+
+                // this is just for touch keyboard as it's not triggers GUI.changed on input
+                GUI.changed = input != _numericStr;
+                _numericStr = input;
+
+                edited = GUI.changed || CheckTouchKeyboardDone();
+                return _numericStr;
+            }
+            else
+                GUI.TextField(rect, strVal);
+            return strVal;
+        }
+
+        internal static string NumericField<T>(T value, out bool edited)
+        {
+            var rect = GUILayoutUtility.GetRect(GUIContent.none, GUI.skin.textField);
+            return NumericField(rect, value, out edited);
         }
     }
 }
