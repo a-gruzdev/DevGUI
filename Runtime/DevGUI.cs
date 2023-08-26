@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Unity.Collections.LowLevel.Unsafe;
 
 namespace DevTools
 {
@@ -32,7 +33,9 @@ namespace DevTools
     {
         private const float Resolution = 800;
         private const float PanelWidth = 300;
-        private const float TitleWidth = 100;
+        private static readonly GUILayoutOption TitleWidth = GUILayout.Width(100);
+        private static readonly GUILayoutOption VectorLabelWidth = GUILayout.Width(10);
+        private static readonly string[] VectorLabels = { "x", "y", "z", "w" };
 
         private static readonly Dictionary<string, List<Action>> _categories = new();
         private static readonly Dictionary<string, bool> _foldouts = new();
@@ -185,7 +188,7 @@ namespace DevTools
             return GUILayout.Toggle(value, _tempContent, Styles.Foldout);
         }
 
-        private static void GUITitle(string title) => GUILayout.Label(title, Styles.Title, GUILayout.Width(TitleWidth));
+        private static void GUITitle(string title) => GUILayout.Label(title, Styles.Title, TitleWidth);
 
         public static float Slider(string title, float value, float min, float max)
         {
@@ -231,6 +234,49 @@ namespace DevTools
                 return parsed;
             return value;
         }
+
+        private static unsafe T VectorField<T>(string title, T value) where T : struct
+        {
+            var componentsCount = UnsafeUtility.SizeOf<T>() / sizeof(float);
+            if (componentsCount > VectorLabels.Length)
+                throw new IndexOutOfRangeException("Vector can have up to 4 components");
+
+            float* ptr = (float*)UnsafeUtility.AddressOf(ref value);
+            using (new TitleScope(title))
+            {
+                for (int i = 0; i < componentsCount; i++)
+                {
+                    GUILayout.Label(VectorLabels[i], VectorLabelWidth);
+                    ptr[i] = FloatField(ptr[i]);
+                }
+            }
+            return value;
+        }
+
+        private static unsafe T VectorIntField<T>(string title, T value) where T : struct
+        {
+            var componentsCount = UnsafeUtility.SizeOf<T>() / sizeof(int);
+            if (componentsCount > 3)
+                throw new IndexOutOfRangeException("VectorInt can have up to 3 components");
+
+            int* ptr = (int*)UnsafeUtility.AddressOf(ref value);
+            using (new TitleScope(title))
+            {
+                for (int i = 0; i < componentsCount; i++)
+                {
+                    GUILayout.Label(VectorLabels[i], VectorLabelWidth);
+                    ptr[i] = IntField(ptr[i]);
+                }
+            }
+            return value;
+        }
+
+        public static Vector2 Vector2Field(string title, Vector2 value) => VectorField(title, value);
+        public static Vector3 Vector3Field(string title, Vector3 value) => VectorField(title, value);
+        public static Vector4 Vector4Field(string title, Vector4 value) => VectorField(title, value);
+
+        public static Vector2Int Vector2IntField(string title, Vector2Int value) => VectorIntField(title, value);
+        public static Vector3Int Vector3IntField(string title, Vector3Int value) => VectorIntField(title, value);
 
         public static T EnumField<T>(string title, T value) where T : Enum
         {
