@@ -83,6 +83,13 @@ namespace DevTools
             return square;
         }
 
+        public static Rect ClampPosInsideRect(Rect child, Rect parent)
+        {
+            child.x = Mathf.Clamp(child.x, parent.x, parent.xMax - child.width);
+            child.y = Mathf.Clamp(child.y, parent.y, parent.yMax - child.height);
+            return child;
+        }
+
         private static char FilterNumericCharacter(char c)
         {
             if (c >= '0' && c <= '9' || c == '.' || c == '-')

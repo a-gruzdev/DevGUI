@@ -15,7 +15,7 @@ namespace DevTools
 
         private readonly Action guiMode;
 
-        public EnumPopup(int id, Rect rect, int value, EnumData enumData) : base(id, rect)
+        private EnumPopup(Rect rect, int value, EnumData enumData) : base(rect)
         {
             _value = value;
             _enumData = enumData;
@@ -118,7 +118,7 @@ namespace DevTools
         public static void Show<T>(int id, Rect rect, T value) where T : Enum
         {
             var enumType = typeof(T);
-            new EnumPopup(id, rect, value.GetHashCode(), EnumUtility.GetData(enumType)).Show();
+            new EnumPopup(rect, value.GetHashCode(), EnumUtility.GetData(enumType)).Show(id);
         }
     }
 }

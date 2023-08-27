@@ -15,6 +15,10 @@ namespace DevTools
         public static GUIStyle DropDown;
         public static GUIStyle DropDownItem;
         public static GUIStyle CheckMark;
+        public static GUIStyle CircleCursor;
+        public static GUIStyle RectCursor;
+        public static GUIStyle HueSlider;
+        public static GUIStyle Checker;
 
         internal static void Init(GUISkin skin)
         {
@@ -26,6 +30,10 @@ namespace DevTools
             DropDown = skin.GetStyle("dropdown");
             DropDownItem = skin.GetStyle("dropdownitem");
             CheckMark = skin.GetStyle("checkmark");
+            CircleCursor = skin.GetStyle("circlecursor");
+            RectCursor = skin.GetStyle("rectcursor");
+            HueSlider = skin.GetStyle("hueslider");
+            Checker = skin.GetStyle("checker");
         }
     }
 
@@ -71,6 +79,7 @@ namespace DevTools
             }
 
             Styles.Init(Skin);
+            ColorPicker.Init();
             _dropdownContent.image = TexArrowDown;
             _instance = this;
         }
@@ -278,6 +287,22 @@ namespace DevTools
         public static Vector2Int Vector2IntField(string title, Vector2Int value) => VectorIntField(title, value);
         public static Vector3Int Vector3IntField(string title, Vector3Int value) => VectorIntField(title, value);
 
+        public static Color ColorField(string title, Color value)
+        {
+            var id = GUIUtility.GetControlID(FocusType.Passive);
+            using (new TitleScope(title))
+            {
+                var rect = GUILayoutUtility.GetRect(GUIContent.none, GUI.skin.button);
+                if (GUI.Button(rect, GUIContent.none))
+                    ColorPicker.Show(id, value);
+
+                ColorPicker.DrawColorRect(rect, value);
+            }
+            if (ColorPicker.TryGetColor(id, out var color))
+                return color;
+            return value;
+        }
+
         public static T EnumField<T>(string title, T value) where T : Enum
         {
             var id = GUIUtility.GetControlID(FocusType.Passive);
@@ -303,6 +328,8 @@ namespace DevTools
             return value;
         }
 
+        public static Vector2 GUIToScreenPoint(Vector2 pos) => GUIUtility.GUIToScreenPoint(pos / _guiScale);
+
         internal readonly ref struct TitleScope
         {
             public TitleScope(string text)
@@ -316,12 +343,11 @@ namespace DevTools
 
         public abstract class Popup
         {
-            public readonly int Id;
+            public int Id { get; protected set; }
             protected Rect _rect;
 
-            public Popup(int id, Rect rect)
+            public Popup(Rect rect)
             {
-                Id = id;
                 _rect = rect;
             }
 
@@ -339,13 +365,22 @@ namespace DevTools
                             e.Use();
                         break;
                 }
-
-                GUI.Window(Id, _rect, OnWindow, GUIContent.none, Styles.Panel);
+                _rect = GUILayout.Window(Id, _rect, OnWindow, GUIContent.none, Styles.Panel);
             }
 
-            public void OnWindow(int id) => PopupGUI();
-            public void Close() => _popup = null;
-            public void Show() => _popup = this;
+            private void OnWindow(int id) => PopupGUI();
+
+            public void Close()
+            {
+                Id = 0;
+                _popup = null;
+            }
+
+            public void Show(int id)
+            {
+                Id = id;
+                _popup = this;
+            }
         }
     }
 }
