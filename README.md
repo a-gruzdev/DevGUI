@@ -60,9 +60,6 @@ Vector3 Vector3Field(string title, Vector3 value);
 Vector4 Vector4Field(string title, Vector4 value);
 Vector2Int Vector2IntField(string title, Vector2Int value);
 Vector3Int Vector3IntField(string title, Vector3Int value);
+Color ColorField(string title, Color value);
 T EnumField<T>(string title, T enumValue); //supports flags
 ```
-
-## Work In Progress
-
-- Color field / Picker
