@@ -92,8 +92,13 @@ namespace DevTools
 
         private static char FilterNumericCharacter(char c)
         {
-            if (c >= '0' && c <= '9' || c == '.' || c == '-')
-                return c;
+            switch (c)
+            {
+                case >= '0' and <= '9':
+                case '.':
+                case '-':
+                    return c;
+            }
             return '\0';
         }
 
