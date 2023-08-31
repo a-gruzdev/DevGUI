@@ -163,7 +163,8 @@ namespace DevTools
             GUILayout.BeginHorizontal();
             GUILayout.Label("Developer Tools", GUILayout.ExpandWidth(false));
 
-            RightSide = GUILayout.Toggle(RightSide, GetArrow(!RightSide), Skin.button, GUILayout.Width(25));
+            if (GUILayout.Button(GetArrow(!RightSide), GUILayout.Width(25)))
+                RightSide = !RightSide;
 
             if (_scroll.y > 10)
             {
