@@ -226,8 +226,16 @@ namespace DevTools
 
     internal class GUIFolder : IComparable<GUIFolder>
     {
+        private class GUIItem : IComparable<GUIItem>
+        {
+            public int SortingOrder;
+            public Action onGUI;
+            public int CompareTo(GUIItem other) => SortingOrder.CompareTo(other.SortingOrder);
+        }
+
+        private readonly List<GUIItem> _guiItems = new();
+
         public readonly List<GUIFolder> Folders = new();
-        public readonly List<Action> GUIList = new();
         public string Name { get; private set; }
         public bool Unfold;
 
@@ -308,7 +316,7 @@ namespace DevTools
             return found;
         }
 
-        public bool IsEmpty() => Folders.Count < 1 && GUIList.Count < 1;
+        public bool IsEmpty() => Folders.Count < 1 && _guiItems.Count < 1;
         public int CompareTo(GUIFolder other) => Name.CompareTo(other.Name);
 
         public void RemoveEmptyFolders()
@@ -317,6 +325,35 @@ namespace DevTools
             {
                 if (Folders[i].IsEmpty())
                     Folders.RemoveAt(i);
+            }
+        }
+
+        public void AddGUI(Action guiFunc, int sortingOrder = 0)
+        {
+            _guiItems.Add(new GUIItem { onGUI = guiFunc, SortingOrder = sortingOrder });
+            _guiItems.Sort();
+        }
+
+        public void RemoveGUI(Action guiFunc)
+        {
+            for (int i = 0; i < _guiItems.Count; i++)
+            {
+                if (_guiItems[i].onGUI == guiFunc)
+                {
+                    _guiItems.RemoveAt(i);
+                    return;
+                }
+            }
+        }
+
+        public void OnGUI()
+        {
+            foreach (var gui in _guiItems)
+            {
+                GUILayout.BeginVertical(GUI.skin.box);
+                GUI.changed = false;
+                gui.onGUI();
+                GUILayout.EndVertical();
             }
         }
     }

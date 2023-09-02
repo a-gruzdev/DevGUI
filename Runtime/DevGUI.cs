@@ -99,9 +99,9 @@ namespace DevTools
 
         private static void SnapToRight(ref Rect rect, Rect target) => rect.x = target.xMax - rect.width;
 
-        public static void AddGUI(string category, Action guiFunc)
+        public static void AddGUI(string category, Action guiFunc, int sortingOrder = 0)
         {
-            _rootFolder.GetAtPath(category).GUIList.Add(guiFunc);
+            _rootFolder.GetAtPath(category).AddGUI(guiFunc, sortingOrder);
         }
 
         public static void RemoveGUI(string category, Action guiFunc)
@@ -109,7 +109,7 @@ namespace DevTools
             if (!_rootFolder.FindAtPath(category, _foldersBuffer))
                 return;
 
-            _foldersBuffer[^1].GUIList.Remove(guiFunc);
+            _foldersBuffer[^1].RemoveGUI(guiFunc);
             for (int i = _foldersBuffer.Count - 1; i >= 0 ; i--)
                 _foldersBuffer[i].RemoveEmptyFolders();
         }
@@ -122,15 +122,7 @@ namespace DevTools
                 if (!folder.Unfold)
                     return;
             }
-
-            GUI.changed = false;
-            foreach (var gui in folder.GUIList)
-            {
-                GUILayout.BeginVertical(Skin.box);
-                GUI.changed = false;
-                gui();
-                GUILayout.EndVertical();
-            }
+            folder.OnGUI();
 
             using var indentScope = new IndentScope(indent * IndentWidth);
             foreach (var child in folder.Folders)
