@@ -11,6 +11,8 @@ namespace DevTools
             public static int Color = 2;
         }
 
+        private enum EditMode { HSV, RGB }
+
         private const string ShaderName = "Hidden/DevGUI/ColorPicker";
         private const float CursorSize = 16;
         private const float PickerAreaMargin = 4;
@@ -26,6 +28,7 @@ namespace DevTools
         private Vector2 _pickerValue;
         private Vector2 _pickerPos;
         private bool _dirty;
+        private EditMode _editMode;
 
         private Vector2 _dragPos;
 
@@ -159,7 +162,7 @@ namespace DevTools
             return GUI.VerticalSlider(rect, value, 0f, 1f, Styles.HueSlider, Styles.RectCursor);
         }
 
-        private void DrawHeader()
+        private void HeaderGUI()
         {
             GUILayout.Label(_hex);
             var rect = GUILayoutUtility.GetLastRect();
@@ -175,9 +178,45 @@ namespace DevTools
             HandleDragArea(rect);
         }
 
+        private void SlidersGUI()
+        {
+            _editMode = DevGUI.EnumField(_editMode);
+            switch (_editMode)
+            {
+                case EditMode.RGB:
+                    _color.r = DevGUI.Slider("Red", _color.r, 0, 1);
+                    _color.g = DevGUI.Slider("Green", _color.g, 0, 1);
+                    _color.b = DevGUI.Slider("Blue", _color.b, 0, 1);
+                    if (GUI.changed)
+                    {
+                        RefreshPicker(true);
+                        GUI.changed = false;
+                    }
+                    break;
+                case EditMode.HSV:
+                    _hue = DevGUI.Slider("Hue", _hue, 0, 1);
+                    _pickerValue.x = DevGUI.Slider("Saturation", _pickerValue.x, 0, 1);
+                    _pickerValue.y = DevGUI.Slider("Brightness", _pickerValue.y, 0, 1);
+                    if (GUI.changed)
+                    {
+                        UpdateColor(true);
+                        GUI.changed = false;
+                    }
+                    break;
+            }
+
+            _color.a = DevGUI.Slider("Alpha", _color.a, 0, 1);
+            if (GUI.changed)
+            {
+                UpdateHex();
+                _dirty = true;
+                GUI.changed = false;
+            }
+        }
+
         public override void PopupGUI()
         {
-            DrawHeader();
+            HeaderGUI();
             GUILayout.Space(PickerAreaMargin);
             GUILayout.BeginHorizontal();
             var pickerArea = GUILayoutUtility.GetRect(100, 100);
@@ -194,16 +233,13 @@ namespace DevTools
 
             GUILayout.EndHorizontal();
             GUILayout.Space(PickerAreaMargin);
+            SlidersGUI();
 
-            _color.r = DevGUI.Slider("R", _color.r, 0, 1);
-            _color.g = DevGUI.Slider("G", _color.g, 0, 1);
-            _color.b = DevGUI.Slider("B", _color.b, 0, 1);
-            _color.a = DevGUI.Slider("A", _color.a, 0, 1);
             if (GUILayout.Button("Reset"))
+            {
                 _color = _prevColor;
-
-            if (GUI.changed)
                 RefreshPicker(true);
+            }
         }
 
         private static void DrawPass(Rect rect, int pass)

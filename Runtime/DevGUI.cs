@@ -50,7 +50,9 @@ namespace DevTools
         private static readonly List<GUIFolder> _foldersBuffer = new();
 
         private static DevGUI _instance;
-        private static Popup _popup;
+        private static readonly List<Popup> _popups = new();
+        private static readonly List<Popup> _closedPopups = new();
+        private static bool _isMouseDownEvent;
 
         private readonly GUIContent _tempContent = new();
         private static readonly GUIContent _dropdownContent = new();
@@ -131,10 +133,22 @@ namespace DevTools
 
         private Texture2D GetArrow(bool right) => right ? TexArrowRight : TexArrowLeft;
 
+        // workaround for closing popups on outside tap
+        // EventType.MouseDown is replaced with EventType.Used in some cases
+        // so it's recorded here before it was used
+        private static void CheckMouseDownEvent()
+        {
+            if (_isMouseDownEvent == true)
+                return;
+            _isMouseDownEvent = Event.current.type == EventType.MouseDown;
+        }
+
         private void MainGUI()
         {
             _window = new Rect(0, 0, PanelWidth, _screen.height);
-            _popup?.OnGUI();
+            CheckMouseDownEvent();
+            foreach (var popup in _popups)
+                popup.OnGUI();
 
             if (RightSide)
                 SnapToRight(ref _window, _screen);
@@ -173,6 +187,12 @@ namespace DevTools
 
             GUILayout.EndScrollView();
             GUILayout.EndArea();
+
+            foreach (var popup in _closedPopups)
+                _popups.Remove(popup);
+            _closedPopups.Clear();
+
+            _isMouseDownEvent = false;
         }
 
         private void OnGUI()
@@ -304,19 +324,22 @@ namespace DevTools
 
         public static T EnumField<T>(string title, T value) where T : Enum
         {
-            var id = GUIUtility.GetControlID(FocusType.Passive);
             using (new TitleScope(title))
+                return EnumField(value);
+        }
+
+        public static T EnumField<T>(T value) where T : Enum
+        {
+            var id = GUIUtility.GetControlID(FocusType.Passive);
+            var rect = GUILayoutUtility.GetRect(GUIContent.none, Styles.DropDown);
+            _dropdownContent.text = EnumUtility.GetName(value);
+            if (GUI.Button(rect, _dropdownContent, Styles.DropDown))
             {
-                var rect = GUILayoutUtility.GetRect(GUIContent.none, Styles.DropDown);
-                _dropdownContent.text = EnumUtility.GetName(value);
-                if (GUI.Button(rect, _dropdownContent, Styles.DropDown))
-                {
-                    var popupRect = rect;
-                    popupRect.y += popupRect.height;
-                    popupRect.position /= _guiScale;
-                    popupRect = GUIUtility.GUIToScreenRect(popupRect);
-                    EnumPopup.Show(id, popupRect, value);
-                }
+                var popupRect = rect;
+                popupRect.y += popupRect.height;
+                popupRect.position /= _guiScale;
+                popupRect = GUIUtility.GUIToScreenRect(popupRect);
+                EnumPopup.Show(id, popupRect, value);
             }
 
             if (EnumPopup.TryGetValue(id, out var selected))
@@ -355,30 +378,33 @@ namespace DevTools
             public void OnGUI()
             {
                 var e = Event.current;
-                switch (e.type)
+                if (_isMouseDownEvent)
                 {
-                    case EventType.MouseDown:
-                        if (!_rect.Contains(e.mousePosition))
-                            Close();
-                        else
-                            e.Use();
-                        break;
+                    if (!_rect.Contains(e.mousePosition))
+                        Close();
+                    else
+                        e.Use();
                 }
                 _rect = GUILayout.Window(Id, _rect, OnWindow, GUIContent.none, Styles.Panel);
             }
 
-            private void OnWindow(int id) => PopupGUI();
+            private void OnWindow(int id)
+            {
+                CheckMouseDownEvent();
+                PopupGUI();
+            }
 
             public void Close()
             {
                 Id = 0;
-                _popup = null;
+                _closedPopups.Add(this);
             }
 
             public void Show(int id)
             {
                 Id = id;
-                _popup = this;
+                GUI.BringWindowToFront(id);
+                _popups.Add(this);
             }
         }
     }
