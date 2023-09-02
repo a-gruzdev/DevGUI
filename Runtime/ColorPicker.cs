@@ -223,17 +223,14 @@ namespace DevTools
         public static bool TryGetColor(int id, out Color color)
         {
             color = Color.white;
-            if (_instance != null && _instance.Id == id)
-            {
-                color = _instance._color;
-                if (_instance._dirty)
-                {
-                    GUI.changed = true;
-                    _instance._dirty = false;
-                }
-                return true;
-            }
-            return false;
+            if (_instance == null || _instance.Id != id)
+                return false;
+            if (!_instance._dirty)
+                return false;
+
+            color = _instance._color;
+            _instance._dirty = false;
+            return true;
         }
 
         public static void Show(int id, Color color)

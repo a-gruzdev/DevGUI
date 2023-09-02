@@ -295,7 +295,10 @@ namespace DevTools
                 ColorPicker.DrawColorRect(rect, value);
             }
             if (ColorPicker.TryGetColor(id, out var color))
+            {
+                GUI.changed = true;
                 return color;
+            }
             return value;
         }
 
