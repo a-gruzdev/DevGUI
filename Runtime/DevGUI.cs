@@ -150,8 +150,9 @@ namespace DevTools
             if (_hidden)
                 return;
 
+            var dragId = GUIUtility.GetControlID(FocusType.Passive);
             if (_window.Contains(Event.current.mousePosition))
-                DevGUIUtility.HandleDragScroll(ref _scroll);
+                DevGUIUtility.HandleDragScroll(dragId, ref _scroll);
 
             GUILayout.BeginArea(_window, Styles.Panel);
             GUILayout.BeginHorizontal();

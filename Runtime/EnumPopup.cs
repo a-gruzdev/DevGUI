@@ -45,7 +45,8 @@ namespace DevTools
 
         public override void PopupGUI()
         {
-            DevGUIUtility.HandleDragScroll(ref _scroll);
+            var dragId = GUIUtility.GetControlID(FocusType.Passive);
+            DevGUIUtility.HandleDragScroll(dragId, ref _scroll);
             _scroll = GUILayout.BeginScrollView(_scroll);
             guiMode();
             GUILayout.EndScrollView();

@@ -50,22 +50,20 @@ namespace DevTools
             Event.current.Use();
         }
 
-        public static void HandleDragScroll(ref Vector2 scroll)
+        public static void HandleDragScroll(int controlId, ref Vector2 scroll)
         {
             var e = Event.current;
-            var id = GUIUtility.GetControlID(FocusType.Passive);
-
             switch (e.type)
             {
                 case EventType.MouseDown:
                     if (GUIUtility.hotControl == 0)
-                        GUIUtility.hotControl = id;
+                        GUIUtility.hotControl = controlId;
                     break;
                 case EventType.MouseDrag:
-                    HandleMouseDrag(id, e.delta, ref scroll);
+                    HandleMouseDrag(controlId, e.delta, ref scroll);
                     break;
                 case EventType.MouseUp:
-                    if (GUIUtility.hotControl == id)
+                    if (GUIUtility.hotControl == controlId)
                         GUIUtility.hotControl = 0;
 
                     _dragDelta = Vector2.zero;
