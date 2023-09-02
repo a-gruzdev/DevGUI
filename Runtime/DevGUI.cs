@@ -41,12 +41,14 @@ namespace DevTools
     {
         private const float Resolution = 800;
         private const float PanelWidth = 300;
+        private const float IndentWidth = 8;
         private static readonly GUILayoutOption TitleWidth = GUILayout.Width(100);
         private static readonly GUILayoutOption VectorLabelWidth = GUILayout.Width(10);
         private static readonly string[] VectorLabels = { "x", "y", "z", "w" };
 
-        private static readonly Dictionary<string, List<Action>> _categories = new();
-        private static readonly Dictionary<string, bool> _foldouts = new();
+        private static readonly GUIFolder _rootFolder = new("Root");
+        private static readonly List<GUIFolder> _foldersBuffer = new();
+
         private static DevGUI _instance;
         private static Popup _popup;
 
@@ -99,40 +101,40 @@ namespace DevTools
 
         public static void AddGUI(string category, Action guiFunc)
         {
-            if (!_categories.TryGetValue(category, out var guiList))
-            {
-                guiList = new List<Action>();
-                _categories[category] = guiList;
-                _foldouts[category] = false;
-            }
-            guiList.Add(guiFunc);
+            _rootFolder.GetAtPath(category).GUIList.Add(guiFunc);
         }
 
         public static void RemoveGUI(string category, Action guiFunc)
         {
-            if (!_categories.TryGetValue(category, out var guiList))
+            if (!_rootFolder.FindAtPath(category, _foldersBuffer))
                 return;
-            guiList.Remove(guiFunc);
-            if (guiList.Count == 0)
-                _categories.Remove(category);
+
+            _foldersBuffer[^1].GUIList.Remove(guiFunc);
+            for (int i = _foldersBuffer.Count - 1; i >= 0 ; i--)
+                _foldersBuffer[i].RemoveEmptyFolders();
         }
 
-        private void PanelGUI()
+        private void FolderGUI(GUIFolder folder, int indent, bool foldable = true)
         {
-            foreach (var (title, guiList) in _categories)
+            if (foldable)
             {
-                _foldouts[title] = Foldout(_foldouts[title], title);
-                GUI.changed = false;
-                if (!_foldouts[title])
-                    continue;
-                foreach (var gui in guiList)
-                {
-                    GUILayout.BeginVertical(Skin.box);
-                    GUI.changed = false;
-                    gui();
-                    GUILayout.EndVertical();
-                }
+                folder.Unfold = Foldout(folder.Unfold, folder.Name);
+                if (!folder.Unfold)
+                    return;
             }
+
+            GUI.changed = false;
+            foreach (var gui in folder.GUIList)
+            {
+                GUILayout.BeginVertical(Skin.box);
+                GUI.changed = false;
+                gui();
+                GUILayout.EndVertical();
+            }
+
+            using var indentScope = new IndentScope(indent * IndentWidth);
+            foreach (var child in folder.Folders)
+                FolderGUI(child, indent + 1);
         }
 
         private Texture2D GetArrow(bool right) => right ? TexArrowRight : TexArrowLeft;
@@ -174,7 +176,7 @@ namespace DevTools
             GUILayout.EndHorizontal();
 
             _scroll = GUILayout.BeginScrollView(_scroll);
-            PanelGUI();
+            FolderGUI(_rootFolder, 0, false);
 
             GUILayout.EndScrollView();
             GUILayout.EndArea();

@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace DevTools
@@ -162,6 +164,160 @@ namespace DevTools
         {
             var rect = GUILayoutUtility.GetRect(GUIContent.none, GUI.skin.textField);
             return NumericField(rect, value, out edited);
+        }
+    }
+
+    internal readonly ref struct IndentScope
+    {
+        public IndentScope(float indent)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Space(indent);
+            GUILayout.BeginVertical();
+        }
+
+        public void Dispose()
+        {
+            GUILayout.EndHorizontal();
+            GUILayout.EndVertical();
+        }
+    }
+
+    public static class DevGUIExtensions
+    {
+        public static FastSplitIterator SplitFast(this string str, char separator) => new(str, separator);
+    }
+
+    public ref struct FastSplitIterator
+    {
+        private readonly char _separator;
+        private readonly string _str;
+        private int _offset;
+        private int _sepIndex;
+        private ReadOnlySpan<char> _current;
+
+        public FastSplitIterator(string str, char separator)
+        {
+            _separator = separator;
+            _str = str;
+            _offset = 0;
+            _sepIndex = 0;
+            _current = default;
+        }
+
+        public bool MoveNext()
+        {
+            if (_sepIndex < 0)
+                return false;
+
+            _sepIndex = _str.IndexOf(_separator, _offset);
+            if (_sepIndex < 0)
+                _current = _str.AsSpan(_offset);
+            else
+                _current = _str.AsSpan(_offset, _sepIndex - _offset);
+
+            _offset = _sepIndex + 1;
+            return true;
+        }
+
+        public readonly ReadOnlySpan<char> Current => _current;
+        public readonly FastSplitIterator GetEnumerator() => this;
+    }
+
+    internal class GUIFolder : IComparable<GUIFolder>
+    {
+        public readonly List<GUIFolder> Folders = new();
+        public readonly List<Action> GUIList = new();
+        public string Name { get; private set; }
+        public bool Unfold;
+
+        public GUIFolder(string name)
+        {
+            Name = name;
+        }
+
+        private bool Find(ReadOnlySpan<char> name, out GUIFolder folder)
+        {
+            folder = null;
+            foreach (var child in Folders)
+            {
+                if (name.SequenceEqual(child.Name))
+                {
+                    folder = child;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private GUIFolder GetFolder(ReadOnlySpan<char> name)
+        {
+            if (!Find(name, out var folder))
+            {
+                folder = new GUIFolder(name.ToString());
+                Folders.Add(folder);
+                Folders.Sort();
+            }
+            return folder;
+        }
+
+        private static bool IsStringEmpty(ReadOnlySpan<char> str)
+        {
+            if (str.Length < 1)
+                return true;
+            foreach (var c in str)
+            {
+                if (c != ' ')
+                    return false;
+            }
+            return true;
+        }
+
+        public GUIFolder GetAtPath(string path)
+        {
+            var folder = this;
+            foreach (var name in path.SplitFast('/'))
+            {
+                if (IsStringEmpty(name))
+                    continue;
+                folder = folder.GetFolder(name);
+            }
+            return folder;
+        }
+
+        public bool FindAtPath(string path, List<GUIFolder> list)
+        {
+            var folder = this;
+            list.Clear();
+            list.Add(folder);
+
+            if (path.Length < 1 || path == "/")
+                return true;
+
+            var found = false;
+            foreach (var name in path.SplitFast('/'))
+            {
+                if (IsStringEmpty(name))
+                    continue;
+                found = folder.Find(name, out folder);
+                if (found)
+                    list.Add(folder);
+                else
+                    return false;
+            }
+            return found;
+        }
+
+        public bool IsEmpty() => Folders.Count < 1 && GUIList.Count < 1;
+        public int CompareTo(GUIFolder other) => Name.CompareTo(other.Name);
+
+        public void RemoveEmptyFolders()
+        {
+            for (int i = Folders.Count - 1; i >= 0; i--)
+            {
+                if (Folders[i].IsEmpty())
+                    Folders.RemoveAt(i);
+            }
         }
     }
 }
