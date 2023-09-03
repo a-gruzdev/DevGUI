@@ -20,16 +20,21 @@ namespace DevTools
             _value = value;
             _enumData = enumData;
             guiMode = _enumData.IsFlags ? FlagsGUI : EnumGUI;
+            _rect.height = CalculateHeight(_enumData.Names.Length);
+
+            if (_rect.yMax > DevGUI.ScreenRect.yMax)
+                _rect.y -= _rect.height + rect.height;
+        }
+
+        private static float CalculateHeight(int count)
+        {
             var height = Styles.DropDownItem.CalcHeight(GUIContent.none, 1);
             var margin = Styles.DropDownItem.margin;
             var spacing = Mathf.Max(margin.top, margin.bottom);
             height += spacing;
-            var itemCount = Mathf.Min(MaxItems, _enumData.Names.Length);
-            _rect.height = height * itemCount;
-            _rect.height += Styles.Panel.padding.vertical + spacing + 2;
-
-            if (_rect.yMax > DevGUI.ScreenRect.yMax)
-                _rect.y -= _rect.height + rect.height;
+            height *= Mathf.Min(MaxItems, count);
+            height += Styles.Panel.padding.vertical + spacing + 3;
+            return height;
         }
 
         private bool DoItem(string text, bool isChecked)
@@ -38,7 +43,8 @@ namespace DevTools
             var pressed = GUI.Button(rect, text, Styles.DropDownItem);
             if (Event.current.type == EventType.Repaint)
             {
-                Styles.CheckMark.Draw(DevGUIUtility.GetSquareRect(rect, 4), false, false, isChecked, false);
+                var markRect = DevGUIUtility.GetSquareRectHorizontal(rect, 0, 8);
+                Styles.CheckMark.Draw(markRect, false, false, isChecked, false);
             }
             return pressed;
         }

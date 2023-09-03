@@ -3,14 +3,15 @@ guid: d7463390683c44ae982db85dabe6a512
 TrueTypeFontImporter:
   externalObjects: {}
   serializedVersion: 4
-  fontSize: 14
+  fontSize: 13
   forceTextureCase: -2
   characterSpacing: 0
   characterPadding: 1
   includeFontData: 1
   fontNames:
   - Roboto Mono
-  fallbackFontReferences: []
+  fallbackFontReferences:
+  - {fileID: 12800000, guid: 533b28be5576a432b8c33beabda83ed7, type: 3}
   customCharacters: 
   fontRenderingMode: 0
   ascentCalculationMode: 1

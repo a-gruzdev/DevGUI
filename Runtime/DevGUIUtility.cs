@@ -73,13 +73,23 @@ namespace DevTools
             }
         }
 
-        public static Rect GetSquareRect(Rect rect, float padding = 0)
+        public static Rect GetSquareRectHorizontal(Rect rect, float anchor, float padding = 0)
         {
             var square = rect;
-            square.height = rect.height - padding * 2;
-            square.width = square.height;
-            square.x += padding;
+            var size = rect.height - padding * 2;
+            square.size = new Vector2(size, size);
+            square.x = Mathf.Lerp(rect.x + padding, rect.xMax - size - padding, anchor);
             square.y += padding;
+            return square;
+        }
+
+        public static Rect GetSquareRectVertical(Rect rect, float anchor, float padding = 0)
+        {
+            var square = rect;
+            var size = rect.width - padding * 2;
+            square.size = new Vector2(size, size);
+            square.x += padding;
+            square.y = Mathf.Lerp(rect.y + padding, rect.yMax - size - padding, anchor);
             return square;
         }
 

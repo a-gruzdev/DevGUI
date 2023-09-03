@@ -8,6 +8,10 @@ namespace DevTools
     public static class Styles
     {
         public static GUIStyle Foldout;
+        public static GUIStyle ArrowUp;
+        public static GUIStyle ArrowDown;
+        public static GUIStyle ArrowRight;
+        public static GUIStyle ArrowLeft;
         public static GUIStyle SideButton;
         public static GUIStyle SliderLabel;
         public static GUIStyle Title;
@@ -23,6 +27,10 @@ namespace DevTools
         internal static void Init(GUISkin skin)
         {
             Foldout = skin.GetStyle("foldout");
+            ArrowUp = skin.GetStyle("arrowup");
+            ArrowDown = skin.GetStyle("arrowdown");
+            ArrowRight = skin.GetStyle("arrowright");
+            ArrowLeft = skin.GetStyle("arrowleft");
             SideButton = skin.GetStyle("sidebutton");
             SliderLabel = skin.GetStyle("sliderlabel");
             Title = skin.GetStyle("title");
@@ -37,39 +45,34 @@ namespace DevTools
         }
     }
 
+    [Icon("SceneViewTools@2x")]
+    [AddComponentMenu("Tools/DevGUI")]
     public class DevGUI : MonoBehaviour
     {
-        private const float Resolution = 800;
-        private const float PanelWidth = 300;
         private const float IndentWidth = 8;
         private static readonly GUILayoutOption TitleWidth = GUILayout.Width(100);
         private static readonly GUILayoutOption VectorLabelWidth = GUILayout.Width(10);
+        private static readonly GUILayoutOption IconButtonWidth = GUILayout.Width(25);
         private static readonly string[] VectorLabels = { "x", "y", "z", "w" };
 
+        private static DevGUI _instance;
         private static readonly GUIFolder _rootFolder = new("Root");
         private static readonly List<GUIFolder> _foldersBuffer = new();
 
-        private static DevGUI _instance;
         private static readonly List<Popup> _popups = new();
         private static bool _isMouseDownEvent;
-
-        private readonly GUIContent _tempContent = new();
-        private static readonly GUIContent _dropdownContent = new();
 
         private static float _guiScale;
         private static Rect _window;
         private static Rect _screen;
         private bool _hidden = true;
         private Vector2 _scroll;
+        private GUISkin _skin;
 
         public static Rect ScreenRect => _screen;
 
-        public Texture2D TexArrowUp;
-        public Texture2D TexArrowDown;
-        public Texture2D TexArrowRight;
-        public Texture2D TexArrowLeft;
-
-        public GUISkin Skin;
+        public float Resolution = 800;
+        public float PanelWidth = 300;
         public bool RightSide = true;
 
         private void Awake()
@@ -80,10 +83,10 @@ namespace DevTools
                 Destroy(this);
                 return;
             }
-
-            Styles.Init(Skin);
+            _skin = Resources.Load<GUISkin>("DevGUISkin");
+            Debug.Assert(_skin != null, "[DevGUI] DevGUISkin not found");
+            Styles.Init(_skin);
             ColorPicker.Init();
-            _dropdownContent.image = TexArrowDown;
             _instance = this;
         }
 
@@ -100,22 +103,7 @@ namespace DevTools
 
         private static void SnapToRight(ref Rect rect, Rect target) => rect.x = target.xMax - rect.width;
 
-        public static void AddGUI(string category, Action guiFunc, int sortingOrder = 0)
-        {
-            _rootFolder.GetAtPath(category).AddGUI(guiFunc, sortingOrder);
-        }
-
-        public static void RemoveGUI(string category, Action guiFunc)
-        {
-            if (!_rootFolder.FindAtPath(category, _foldersBuffer))
-                return;
-
-            _foldersBuffer[^1].RemoveGUI(guiFunc);
-            for (int i = _foldersBuffer.Count - 1; i >= 0 ; i--)
-                _foldersBuffer[i].RemoveEmptyFolders();
-        }
-
-        private void FolderGUI(GUIFolder folder, int indent, bool foldable = true)
+        private static void FolderGUI(GUIFolder folder, int indent, bool foldable = true)
         {
             if (foldable)
             {
@@ -130,7 +118,14 @@ namespace DevTools
                 FolderGUI(child, indent + 1);
         }
 
-        private Texture2D GetArrow(bool right) => right ? TexArrowRight : TexArrowLeft;
+        private static void DrawSquare(Rect rect, float anchor, float padding, GUIStyle style)
+        {
+            if (Event.current.type != EventType.Repaint)
+                return;
+            style.Draw(DevGUIUtility.GetSquareRectHorizontal(rect, anchor, padding), false, false, false, false);
+        }
+
+        private GUIStyle GetArrow(bool right) => right ? Styles.ArrowRight : Styles.ArrowLeft;
 
         // workaround for closing popups on outside tap
         // EventType.MouseDown is replaced with EventType.Used in some cases by window gui
@@ -152,6 +147,47 @@ namespace DevTools
             _isMouseDownEvent = false;
         }
 
+        private void HideButtonToggle()
+        {
+            const float Width = 28;
+            const float Height = 50;
+            const float TopOffset = 30;
+            var btnRect = new Rect(_window.x - Width, TopOffset, Width, Height);
+            if (!RightSide)
+                btnRect.x += _window.width + Width;
+
+            _hidden = GUI.Toggle(btnRect, _hidden, GUIContent.none, Styles.SideButton);
+
+            if (Event.current.type == EventType.Repaint)
+            {
+                var arrowRect = DevGUIUtility.GetSquareRectVertical(btnRect, 0.5f, 8);
+                GetArrow(_hidden ^ RightSide).Draw(arrowRect, false, false, false, false);
+            }
+        }
+
+        private static bool IconButton(GUIStyle iconStyle)
+        {
+            var pressed = GUILayout.Button(GUIContent.none, IconButtonWidth);
+            DrawSquare(GUILayoutUtility.GetLastRect(), 0.5f, 8, iconStyle);
+            return pressed;
+        }
+
+        private void TitleBarGUI()
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Developer Tools", GUILayout.ExpandWidth(false));
+
+            if (IconButton(GetArrow(!RightSide)))
+                RightSide = !RightSide;
+
+            if (_scroll.y > 20)
+            {
+                if (IconButton(Styles.ArrowUp))
+                    _scroll.y = 0;
+            }
+            GUILayout.EndHorizontal();
+        }
+
         private void MainGUI()
         {
             _window = new Rect(0, 0, PanelWidth, _screen.height);
@@ -162,12 +198,7 @@ namespace DevTools
             if (_hidden)
                 _window.x += RightSide ? _window.width : -_window.width;
 
-            const float SideButtonWidth = 30;
-            var btnRect = new Rect(_window.x - SideButtonWidth, 30, SideButtonWidth, 50);
-            if (!RightSide)
-                btnRect.x += _window.width + SideButtonWidth;
-
-            _hidden = GUI.Toggle(btnRect, _hidden, GetArrow(_hidden ^ RightSide), Styles.SideButton);
+            HideButtonToggle();
             if (_hidden)
                 return;
 
@@ -176,29 +207,16 @@ namespace DevTools
                 DevGUIUtility.HandleDragScroll(dragId, ref _scroll);
 
             GUILayout.BeginArea(_window, Styles.Panel);
-            GUILayout.BeginHorizontal();
-            GUILayout.Label("Developer Tools", GUILayout.ExpandWidth(false));
-
-            if (GUILayout.Button(GetArrow(!RightSide), GUILayout.Width(25)))
-                RightSide = !RightSide;
-
-            if (_scroll.y > 10)
-            {
-                if (GUILayout.Button(TexArrowUp, GUILayout.Width(25)))
-                    _scroll.y = 0;
-            }
-            GUILayout.EndHorizontal();
-
+            TitleBarGUI();
             _scroll = GUILayout.BeginScrollView(_scroll);
             FolderGUI(_rootFolder, 0, false);
-
             GUILayout.EndScrollView();
             GUILayout.EndArea();
         }
 
         private void OnGUI()
         {
-            GUI.skin = Skin;
+            GUI.skin = _skin;
             _guiScale = Screen.width / Resolution;
             var guiMatrix = GUI.matrix;
             GUI.matrix = Matrix4x4.Scale(Vector3.one * _guiScale);
@@ -207,14 +225,27 @@ namespace DevTools
             GUI.matrix = guiMatrix;
         }
 
-        private bool Foldout(bool value, string title)
+        public static void AddGUI(string category, Action guiFunc, int sortingOrder = 0)
         {
-            _tempContent.image = value ? TexArrowDown : TexArrowRight;
-            _tempContent.text = title;
-            return GUILayout.Toggle(value, _tempContent, Styles.Foldout);
+            _rootFolder.GetAtPath(category).AddGUI(guiFunc, sortingOrder);
         }
 
-        private static void GUITitle(string title) => GUILayout.Label(title, Styles.Title, TitleWidth);
+        public static void RemoveGUI(string category, Action guiFunc)
+        {
+            if (!_rootFolder.FindAtPath(category, _foldersBuffer))
+                return;
+
+            _foldersBuffer[^1].RemoveGUI(guiFunc);
+            for (int i = _foldersBuffer.Count - 1; i >= 0; i--)
+                _foldersBuffer[i].RemoveEmptyFolders();
+        }
+
+        public static bool Foldout(bool value, string title)
+        {
+            value = GUILayout.Toggle(value, title, Styles.Foldout);
+            DrawSquare(GUILayoutUtility.GetLastRect(), 0, 5, value ? Styles.ArrowDown : Styles.ArrowRight);
+            return value;
+        }
 
         public static float Slider(string title, float value, float min, float max)
         {
@@ -333,8 +364,7 @@ namespace DevTools
         {
             var id = GUIUtility.GetControlID(FocusType.Passive);
             var rect = GUILayoutUtility.GetRect(GUIContent.none, Styles.DropDown);
-            _dropdownContent.text = EnumUtility.GetName(value);
-            if (GUI.Button(rect, _dropdownContent, Styles.DropDown))
+            if (GUI.Button(rect, EnumUtility.GetName(value), Styles.DropDown))
             {
                 var popupRect = rect;
                 popupRect.y += popupRect.height;
@@ -342,6 +372,7 @@ namespace DevTools
                 popupRect = GUIUtility.GUIToScreenRect(popupRect);
                 EnumPopup.Show(id, popupRect, value);
             }
+            DrawSquare(rect, 1, 8, Styles.ArrowDown);
 
             if (EnumPopup.TryGetValue(id, out var selected))
             {
@@ -358,7 +389,7 @@ namespace DevTools
             public TitleScope(string text)
             {
                 GUILayout.BeginHorizontal(GUI.skin.box);
-                GUITitle(text);
+                GUILayout.Label(text, Styles.Title, TitleWidth);
             }
 
             public void Dispose() => GUILayout.EndHorizontal();
@@ -388,7 +419,7 @@ namespace DevTools
                             Close();
                             return false;
                         }
-                        else
+                        else if (e.type == EventType.MouseDown)
                             e.Use();
                     }
                 }
