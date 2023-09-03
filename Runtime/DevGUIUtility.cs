@@ -359,8 +359,21 @@ namespace DevTools
             foreach (var gui in _guiItems)
             {
                 GUILayout.BeginVertical(GUI.skin.box);
-                GUI.changed = false;
-                gui.onGUI();
+                try
+                {
+                    GUI.changed = false;
+                    gui.onGUI();
+                }
+                catch (Exception e)
+                {
+                    var guiColor = GUI.color;
+                    GUI.color = Color.red;
+                    GUILayout.Label(e.ToString());
+                    GUI.color = guiColor;
+                #if UNITY_EDITOR
+                    throw;
+                #endif
+                }
                 GUILayout.EndVertical();
             }
         }
