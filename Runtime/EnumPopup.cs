@@ -43,7 +43,7 @@ namespace DevTools
             return pressed;
         }
 
-        public override void PopupGUI()
+        protected override void PopupGUI()
         {
             var dragId = GUIUtility.GetControlID(FocusType.Passive);
             DevGUIUtility.HandleDragScroll(dragId, ref _scroll);

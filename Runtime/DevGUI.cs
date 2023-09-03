@@ -51,7 +51,6 @@ namespace DevTools
 
         private static DevGUI _instance;
         private static readonly List<Popup> _popups = new();
-        private static readonly List<Popup> _closedPopups = new();
         private static bool _isMouseDownEvent;
 
         private readonly GUIContent _tempContent = new();
@@ -134,7 +133,7 @@ namespace DevTools
         private Texture2D GetArrow(bool right) => right ? TexArrowRight : TexArrowLeft;
 
         // workaround for closing popups on outside tap
-        // EventType.MouseDown is replaced with EventType.Used in some cases
+        // EventType.MouseDown is replaced with EventType.Used in some cases by window gui
         // so it's recorded here before it was used
         private static void CheckMouseDownEvent()
         {
@@ -143,12 +142,20 @@ namespace DevTools
             _isMouseDownEvent = Event.current.type == EventType.MouseDown;
         }
 
+        private void PopupsGUI()
+        {
+            CheckMouseDownEvent();
+            var checkClose = true;
+            for (int i = _popups.Count - 1; i >= 0; i--)
+                checkClose = !_popups[i].OnGUI(checkClose);
+
+            _isMouseDownEvent = false;
+        }
+
         private void MainGUI()
         {
             _window = new Rect(0, 0, PanelWidth, _screen.height);
-            CheckMouseDownEvent();
-            foreach (var popup in _popups)
-                popup.OnGUI();
+            PopupsGUI();
 
             if (RightSide)
                 SnapToRight(ref _window, _screen);
@@ -187,12 +194,6 @@ namespace DevTools
 
             GUILayout.EndScrollView();
             GUILayout.EndArea();
-
-            foreach (var popup in _closedPopups)
-                _popups.Remove(popup);
-            _closedPopups.Clear();
-
-            _isMouseDownEvent = false;
         }
 
         private void OnGUI()
@@ -373,19 +374,26 @@ namespace DevTools
                 _rect = rect;
             }
 
-            public abstract void PopupGUI();
+            protected abstract void PopupGUI();
 
-            public void OnGUI()
+            public bool OnGUI(bool checkClose)
             {
-                var e = Event.current;
-                if (_isMouseDownEvent)
+                if (checkClose)
                 {
-                    if (!_rect.Contains(e.mousePosition))
-                        Close();
-                    else
-                        e.Use();
+                    var e = Event.current;
+                    if (_isMouseDownEvent)
+                    {
+                        if (!_rect.Contains(e.mousePosition))
+                        {
+                            Close();
+                            return false;
+                        }
+                        else
+                            e.Use();
+                    }
                 }
                 _rect = GUILayout.Window(Id, _rect, OnWindow, GUIContent.none, Styles.Panel);
+                return true;
             }
 
             private void OnWindow(int id)
@@ -397,7 +405,7 @@ namespace DevTools
             public void Close()
             {
                 Id = 0;
-                _closedPopups.Add(this);
+                _popups.Remove(this);
             }
 
             public void Show(int id)

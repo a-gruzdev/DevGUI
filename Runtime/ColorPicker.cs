@@ -11,7 +11,7 @@ namespace DevTools
             public static int Color = 2;
         }
 
-        private enum EditMode { HSV, RGB }
+        private enum EditMode { Compact, HSV, RGB }
 
         private const string ShaderName = "Hidden/DevGUI/ColorPicker";
         private const float CursorSize = 16;
@@ -155,10 +155,10 @@ namespace DevTools
             }
         }
 
-        private float PickerSlider(float value, int pass)
+        private float HueSlider(float value)
         {
             var rect = GUILayoutUtility.GetRect(GUIContent.none, Styles.HueSlider);
-            DrawPass(rect, pass);
+            DrawPass(rect, Pass.HueArea);
             return GUI.VerticalSlider(rect, value, 0f, 1f, Styles.HueSlider, Styles.RectCursor);
         }
 
@@ -181,6 +181,12 @@ namespace DevTools
         private void SlidersGUI()
         {
             _editMode = DevGUI.EnumField(_editMode);
+            if (GUI.changed)
+            {
+                _rect.height = 0;
+                GUI.changed = false;
+            }
+
             switch (_editMode)
             {
                 case EditMode.RGB:
@@ -214,7 +220,7 @@ namespace DevTools
             }
         }
 
-        public override void PopupGUI()
+        protected override void PopupGUI()
         {
             HeaderGUI();
             GUILayout.Space(PickerAreaMargin);
@@ -224,7 +230,7 @@ namespace DevTools
             HandlePickerArea(pickerArea);
 
             GUILayout.Space(PickerAreaMargin);
-            _hue = PickerSlider(_hue, Pass.HueArea);
+            _hue = HueSlider(_hue);
             if (GUI.changed)
             {
                 UpdateColor(true);
