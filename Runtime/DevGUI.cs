@@ -55,7 +55,6 @@ namespace DevTools
         private static readonly GUILayoutOption IconButtonWidth = GUILayout.Width(25);
         private static readonly string[] VectorLabels = { "x", "y", "z", "w" };
 
-        private static DevGUI _instance;
         private static readonly GUIFolder _rootFolder = new("Root");
         private static readonly List<GUIFolder> _foldersBuffer = new();
 
@@ -69,17 +68,18 @@ namespace DevTools
         private Vector2 _scroll;
         private GUISkin _skin;
 
-        public static Rect ScreenRect => _screen;
-
         public float Resolution = 800;
         public float PanelWidth = 300;
         public bool RightSide = true;
 
+        public static Rect ScreenRect => _screen;
+        public static DevGUI Instance { get; private set; }
+
         private void Awake()
         {
-            if (_instance != null)
+            if (Instance != null)
             {
-                Debug.LogWarning("[DevGUI] Only one instance allowed", gameObject);
+                Debug.LogWarning("[DevGUI] Only one instance is allowed", gameObject);
                 Destroy(this);
                 return;
             }
@@ -87,7 +87,7 @@ namespace DevTools
             Debug.Assert(_skin != null, "[DevGUI] DevGUISkin not found");
             Styles.Init(_skin);
             ColorPicker.Init();
-            _instance = this;
+            Instance = this;
         }
 
         private void OnEnable() => AddGUI("Device Info", InfoGUI);
