@@ -145,7 +145,10 @@ namespace DevTools
 
         internal static string NumericField<T>(Rect rect, T value, out bool edited)
         {
-            var id = GUIUtility.GetControlID(FocusType.Passive) + 1;
+            var id = GUIUtility.GetControlID(FocusType.Passive);
+            if (id > 0) // it seems GetControlID returns -1 if EventType is Used, this check prevents behaviour when keyboardControl == 0
+                id++;
+
             edited = false;
             var strVal = value.ToString();
             HandleTextFieldTouch(id, rect, strVal);
