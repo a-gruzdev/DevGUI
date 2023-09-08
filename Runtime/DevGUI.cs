@@ -57,6 +57,8 @@ namespace DevTools
 
         private static readonly GUIFolder _rootFolder = new("Root");
         private static readonly List<GUIFolder> _foldersBuffer = new();
+        private static readonly List<(string path, Action action, int order)> _addedGUIs = new();
+        private static readonly List<(string path, Action action)> _removedGUIs = new();
 
         private static readonly List<Popup> _popups = new();
         private static bool _isMouseDownEvent;
@@ -74,6 +76,8 @@ namespace DevTools
 
         public static Rect ScreenRect => _screen;
         public static DevGUI Instance { get; private set; }
+
+        private static bool IsOpen => Instance != null && !Instance._hidden;
 
         private void Awake()
         {
@@ -214,8 +218,27 @@ namespace DevTools
             GUILayout.EndArea();
         }
 
+        private static void CleanupGUI()
+        {
+            if (_removedGUIs.Count > 0)
+            {
+                foreach (var (path, action) in _removedGUIs)
+                    RemoveGUIImmediate(path, action);
+
+                _removedGUIs.Clear();
+            }
+            if (_addedGUIs.Count > 0)
+            {
+                foreach (var (path, action, order) in _addedGUIs)
+                    AddGUIImmediate(path, action, order);
+
+                _addedGUIs.Clear();
+            }
+        }
+
         private void OnGUI()
         {
+            CleanupGUI();
             GUI.skin = _skin;
             _guiScale = Screen.width / Resolution;
             var guiMatrix = GUI.matrix;
@@ -227,10 +250,26 @@ namespace DevTools
 
         public static void AddGUI(string category, Action guiFunc, int sortingOrder = 0)
         {
+            if (IsOpen)
+                _addedGUIs.Add((category, guiFunc, sortingOrder));
+            else
+                AddGUIImmediate(category, guiFunc, sortingOrder);
+        }
+
+        private static void AddGUIImmediate(string category, Action guiFunc, int sortingOrder = 0)
+        {
             _rootFolder.GetAtPath(category).AddGUI(guiFunc, sortingOrder);
         }
 
         public static void RemoveGUI(string category, Action guiFunc)
+        {
+            if (IsOpen)
+                _removedGUIs.Add((category, guiFunc));
+            else
+                RemoveGUIImmediate(category, guiFunc);
+        }
+
+        private static void RemoveGUIImmediate(string category, Action guiFunc)
         {
             if (!_rootFolder.FindAtPath(category, _foldersBuffer))
                 return;
