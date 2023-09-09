@@ -97,17 +97,6 @@ namespace DevTools
                 gameObject.AddComponent<DevGUIGammaFix>();
         }
 
-        private void OnEnable() => AddGUI("Device Info", InfoGUI);
-        private void OnDisable() => RemoveGUI("Device Info", InfoGUI);
-
-        private void InfoGUI()
-        {
-            GUILayout.Label($"Device: {SystemInfo.deviceModel}");
-            GUILayout.Label($"Resolution: {Screen.currentResolution}");
-            GUILayout.Label($"Graphics API: {SystemInfo.graphicsDeviceType}");
-            GUILayout.Label($"Graphics Device: {SystemInfo.graphicsDeviceName}");
-        }
-
         private static void SnapToRight(ref Rect rect, Rect target) => rect.x = target.xMax - rect.width;
 
         private static void FolderGUI(GUIFolder folder, int indent, bool foldable = true)
@@ -250,6 +239,18 @@ namespace DevTools
             _screen.size = new Vector2(Screen.width / _guiScale, Screen.height / _guiScale);
             MainGUI();
             GUI.matrix = guiMatrix;
+        }
+
+        public static DevGUI Create(bool showDeviceInfo, bool dontDestroyOnLoad)
+        {
+            var devGUI = new GameObject(nameof(DevGUI)).AddComponent<DevGUI>();
+            if (showDeviceInfo)
+                devGUI.gameObject.AddComponent<DeviceInfoGUI>();
+
+            if (dontDestroyOnLoad)
+                DontDestroyOnLoad(devGUI);
+
+            return devGUI;
         }
 
         public static void AddGUI(string category, Action guiFunc, int sortingOrder = 0)
