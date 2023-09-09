@@ -92,6 +92,9 @@ namespace DevTools
             Styles.Init(_skin);
             ColorPicker.Init();
             Instance = this;
+
+            if (QualitySettings.activeColorSpace == ColorSpace.Linear)
+                gameObject.AddComponent<DevGUIGammaFix>();
         }
 
         private void OnEnable() => AddGUI("Device Info", InfoGUI);
@@ -239,6 +242,7 @@ namespace DevTools
         private void OnGUI()
         {
             CleanupGUI();
+            using var guiScope = GUIScope.Begin();
             GUI.skin = _skin;
             _guiScale = Screen.width / Resolution;
             var guiMatrix = GUI.matrix;
@@ -434,6 +438,24 @@ namespace DevTools
             public void Dispose() => GUILayout.EndHorizontal();
         }
 
+
+        internal static event Action OnGUIBegin;
+        internal static event Action OnGUIEnd;
+
+        private class GUIScope : IDisposable
+        {
+            private readonly static GUIScope _instance = new();
+            private GUIScope() { }
+
+            public static GUIScope Begin()
+            {
+                OnGUIBegin?.Invoke();
+                return _instance;
+            }
+
+            public void Dispose() => OnGUIEnd?.Invoke();
+        }
+
         public abstract class Popup
         {
             public int Id { get; protected set; }
@@ -462,14 +484,17 @@ namespace DevTools
                             e.Use();
                     }
                 }
-                _rect = GUILayout.Window(Id, _rect, OnWindow, GUIContent.none, Styles.Panel);
+                _rect = GUILayout.Window(Id, _rect, OnWindow, GUIContent.none);
                 return true;
             }
 
             private void OnWindow(int id)
             {
+                using var guiScope = GUIScope.Begin();
+                GUILayout.BeginVertical(Styles.Panel);
                 CheckMouseDownEvent();
                 PopupGUI();
+                GUILayout.EndVertical();
             }
 
             public void Close()
