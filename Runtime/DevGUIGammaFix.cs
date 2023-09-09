@@ -7,6 +7,7 @@ namespace DevTools
     [DisallowMultipleComponent]
     public class DevGUIGammaFix : MonoBehaviour
     {
+        private static Texture2D _alphaLookup;
         private Shader _shader;
         private Material _material;
         private Shader _defaultShader;
@@ -21,8 +22,12 @@ namespace DevTools
             _material = (Material)materialProp.GetValue(null);
             _defaultShader = _material.shader;
 
-            var lookupTex = Resources.Load<Texture2D>("GammaAlphaLookupTex");
-            Shader.SetGlobalTexture("_AlphaLookupTex", lookupTex);
+            if (_alphaLookup == null)
+            {
+                _alphaLookup = Resources.Load<Texture2D>("GammaAlphaLookupTex");
+                _alphaLookup.hideFlags = HideFlags.DontUnloadUnusedAsset;
+            }
+            Shader.SetGlobalTexture("_AlphaLookupTex", _alphaLookup);
         }
 
         private void OnEnable()
