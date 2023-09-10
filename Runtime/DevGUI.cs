@@ -208,6 +208,9 @@ namespace DevTools
             FolderGUI(_rootFolder, 0, false);
             GUILayout.EndScrollView();
             GUILayout.EndArea();
+
+            if (Event.current.type == EventType.MouseUp)
+                GUIUtility.hotControl = 0;
         }
 
         private static void CleanupGUI()
