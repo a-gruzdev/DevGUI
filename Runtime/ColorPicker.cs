@@ -37,6 +37,8 @@ namespace DevTools
             _material.SetTexture("_Background", Styles.Checker.normal.background);
         }
 
+        internal static void EnableGammaCorrection() => _material.EnableKeyword("DEVGUI_GAMMA_CORRECT");
+
         private ColorPicker(Rect rect) : base(rect) { }
 
         private void RefreshPicker(bool setDirty = false)

@@ -31,7 +31,7 @@ Shader "Hidden/DevGUI/ColorPicker"
 
         half3 gamma2linear(half3 col)
         {
-        #ifndef UNITY_COLORSPACE_GAMMA
+        #if !defined(UNITY_COLORSPACE_GAMMA) && !defined(DEVGUI_GAMMA_CORRECT)
             return GammaToLinearSpace(col.rgb);
         #endif
             return col;
@@ -77,6 +77,7 @@ Shader "Hidden/DevGUI/ColorPicker"
         {
             Name "Picker Area"
             CGPROGRAM
+            #pragma multi_compile_local _ DEVGUI_GAMMA_CORRECT
             #pragma vertex vert_img
 
             half4 frag(v2f_img i) : SV_Target
@@ -93,6 +94,7 @@ Shader "Hidden/DevGUI/ColorPicker"
         {
             Name "Hue Area"
             CGPROGRAM
+            #pragma multi_compile_local _ DEVGUI_GAMMA_CORRECT
             #pragma vertex vert_img
 
             half4 frag(v2f_img i) : SV_Target
@@ -109,12 +111,17 @@ Shader "Hidden/DevGUI/ColorPicker"
         {
             Name "Color"
             CGPROGRAM
+            #pragma multi_compile_local _ DEVGUI_GAMMA_CORRECT
             #pragma vertex vert
 
             half4 frag(v2f i) : SV_Target
             {
                 half4 tex = tex2D(_Background, i.texcoord);
                 tex.rgb = lerp(tex.rgb, _Color.rgb, _Color.a);
+
+            #ifdef DEVGUI_GAMMA_CORRECT
+                tex.rgb = LinearToGammaSpace(tex.rgb);
+            #endif
 
                 tex.a *= tex2D(_GUIClipTexture, i.clipUV).a;
                 return tex;

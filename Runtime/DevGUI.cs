@@ -92,8 +92,19 @@ namespace DevTools
             Styles.Init(_skin);
             ColorPicker.Init();
             Instance = this;
+            ApplyGammaCorrection();
+        }
 
-            if (QualitySettings.activeColorSpace == ColorSpace.Linear)
+        private void ApplyGammaCorrection()
+        {
+            if (QualitySettings.activeColorSpace != ColorSpace.Linear)
+                return;
+
+            // I don't know all cases and couldn't find any good solutions
+            // this fixes differences on Windows vs OSX/Android
+            if (SystemInfo.operatingSystemFamily == OperatingSystemFamily.Windows)
+                ColorPicker.EnableGammaCorrection();
+            else
                 gameObject.AddComponent<DevGUIGammaFix>();
         }
 
