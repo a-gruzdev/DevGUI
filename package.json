@@ -1,10 +1,17 @@
 {
   "name": "devgui",
   "displayName": "DevGUI",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "author": {
     "name": "Aleksandr Gruzdev",
     "email": "sashask8@gmail.com",
     "url": "https://www.a-gruzdev.com/"
-  }
+  },
+  "samples": [
+    {
+      "displayName": "DevGUI Example Samples",
+      "description": "DevGUI Example Samples",
+      "path": "Samples~/SamplesDevGUI"
+    }
+  ]
 }
