@@ -291,7 +291,10 @@ namespace DevTools
         private static void RemoveGUIImmediate(string category, Action guiFunc)
         {
             if (!_rootFolder.FindAtPath(category, _foldersBuffer))
+            {
+                Debug.LogWarning($"[DevGUI] Folder not found {category}");
                 return;
+            }
 
             _foldersBuffer[^1].RemoveGUI(guiFunc);
             for (int i = _foldersBuffer.Count - 1; i >= 0; i--)
