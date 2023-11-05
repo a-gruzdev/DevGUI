@@ -12,6 +12,7 @@ namespace DevTools
 
         private static DragState _dragState;
         private static Vector2 _dragDelta;
+        private static Vector2 _dragPos;
         private static int _dragControl;
 
         private static string _numericStr;
@@ -57,10 +58,15 @@ namespace DevTools
             {
                 case EventType.MouseDown:
                     if (GUIUtility.hotControl == 0)
+                    {
+                        _dragPos = e.mousePosition;
                         GUIUtility.hotControl = controlId;
+                    }
                     break;
                 case EventType.MouseDrag:
-                    HandleMouseDrag(controlId, e.delta, ref scroll);
+                    var delta = _dragPos - e.mousePosition;
+                    _dragPos = e.mousePosition;
+                    HandleMouseDrag(controlId, delta, ref scroll);
                     break;
                 case EventType.MouseUp:
                     if (GUIUtility.hotControl == controlId)
