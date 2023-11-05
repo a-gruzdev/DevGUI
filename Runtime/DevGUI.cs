@@ -108,8 +108,6 @@ namespace DevTools
                 gameObject.AddComponent<DevGUIGammaFix>();
         }
 
-        private static void SnapToRight(ref Rect rect, Rect target) => rect.x = target.xMax - rect.width;
-
         private static void FolderGUI(GUIFolder folder, int indent, bool foldable = true)
         {
             if (foldable)
@@ -201,7 +199,7 @@ namespace DevTools
             PopupsGUI();
 
             if (RightSide)
-                SnapToRight(ref _window, _screen);
+                _window.x = _screen.xMax - _window.width;
             if (_hidden)
                 _window.x += RightSide ? _window.width : -_window.width;
 
